@@ -1,0 +1,12 @@
+.git
+.github
+.dev
+node_modules
+test
+device
+unraid
+scripts
+*.md
+*.rgba
+docker-compose.yml
+docs

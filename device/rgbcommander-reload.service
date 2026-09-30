@@ -1,0 +1,8 @@
+[Unit]
+Description=Restart RGBcommander so it loads new or changed animations
+
+[Service]
+Type=oneshot
+# Syncthing may deliver several files in a row; let it finish first.
+ExecStartPre=/bin/sleep 10
+ExecStart=/bin/systemctl restart rgbcommander

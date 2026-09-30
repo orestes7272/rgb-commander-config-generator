@@ -1,0 +1,17 @@
+# For running outside Unraid's template system (or to test locally).
+services:
+  rgb-commander-studio:
+    build: .
+    image: rgb-commander-studio:latest
+    container_name: rgb-commander-studio
+    ports:
+      - "8080:8080"
+    environment:
+      PUID: "99"
+      PGID: "100"
+      UMASK: "002"
+      # AUTH_PASSWORD: "change-me"   # optional: log in as "admin" with this password
+    volumes:
+      - /mnt/user/appdata/rgb-commander-studio:/config
+      - /mnt/user/syncthing/rgbcommander/rgba:/output
+    restart: unless-stopped

@@ -1,0 +1,16 @@
+{
+  "name": "rgb-commander-config-generator",
+  "version": "1.0.0",
+  "description": "Web GUI for designing RGBcommander (.rgba) lighting schemes and animations for Ultimarc LED boards",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.2"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "DATA_DIR=./.dev/config OUTPUT_DIR=./.dev/output node --watch server/index.js",
+    "test": "node --test test/*.test.js",
+    "icon": "node scripts/make-icon.mjs"
+  }
+}

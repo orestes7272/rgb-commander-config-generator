@@ -1,0 +1,2 @@
+# Keep .rgba fixtures byte-for-byte (the stock files use CRLF line endings).
+*.rgba -text

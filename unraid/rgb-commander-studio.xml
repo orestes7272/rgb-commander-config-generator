@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>rgb-commander-studio</Name>
+  <Repository>ghcr.io/orestes7272/rgb-commander-config-generator:latest</Repository>
+  <Registry>https://github.com/orestes7272/rgb-commander-config-generator/pkgs/container/rgb-commander-config-generator</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/orestes7272/rgb-commander-config-generator/issues</Support>
+  <Project>https://github.com/orestes7272/rgb-commander-config-generator</Project>
+  <Overview>Design button lighting schemes and animations for RGBcommander (Ultimarc I-PAC Ultimate I/O and PacLED64) in your browser, with live previews of how the LEDs will glow. Published .rgba files are written to a share, ready for Syncthing to carry to your arcade cabinet.</Overview>
+  <Category>Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/orestes7272/rgb-commander-config-generator/main/unraid/rgb-commander-studio.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/orestes7272/rgb-commander-config-generator/main/public/icon-256.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Syncthing (or another sync tool) sharing the output folder with the cabinet.</Requires>
+  <Config Name="Web UI port" Target="8080" Default="8080" Mode="tcp" Description="Port for the web interface." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Output folder (.rgba files for Syncthing)" Target="/output" Default="/mnt/user/syncthing/rgbcommander/rgba" Mode="rw" Description="Published .rgba files are written here. Share this folder with your cabinet in Syncthing so it lands in RGBcommander's rgba folder." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/syncthing/rgbcommander/rgba</Config>
+  <Config Name="App data" Target="/config" Default="/mnt/user/appdata/rgb-commander-studio" Mode="rw" Description="Schemes, panel layout, settings and backups of replaced files." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/rgb-commander-studio</Config>
+  <Config Name="Password" Target="AUTH_PASSWORD" Default="" Mode="" Description="Optional. When set, the web UI asks for user 'admin' and this password." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User the app writes files as (99 = nobody)." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group the app writes files as (100 = users)." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="002" Mode="" Description="Permission mask for new files. 002 makes them group-writable; use 000 if another container runs as a different user and needs to change them." Type="Variable" Display="advanced" Required="false" Mask="false">002</Config>
+</Container>

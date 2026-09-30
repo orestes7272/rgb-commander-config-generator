@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch RGBcommander's rgba folder for files delivered by Syncthing
+
+[Path]
+# Replaced by install-reload-helper.sh if your rgba folder lives elsewhere.
+PathChanged=/usr/sbin/rgbcommander/rgba
+Unit=rgbcommander-reload.service
+
+[Install]
+WantedBy=multi-user.target
