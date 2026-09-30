@@ -28,45 +28,66 @@ browser ──> RGB Commander Studio (Unraid container)
             buttons light up
 ```
 
-## 1. Install on Unraid
+## 1. Run it on Unraid with Docker Compose
 
-### Get the image
+Unraid doesn't ship Docker Compose, so first install **Compose Manager Plus** from the **Apps** tab. It replaces the older Docker Compose Manager plugin, which is deprecated, and adds a **Compose** section to the **Docker** tab.
 
-**Option A: GitHub builds it (recommended).** Every push to `main` runs the included workflow (`.github/workflows/container.yml`), which runs the tests and publishes `ghcr.io/orestes7272/rgb-commander-config-generator:latest` for amd64 and arm64. After the first run, open *Packages → rgb-commander-config-generator → Package settings* on GitHub and set visibility to **Public**, so Unraid can pull it without logging in.
+1. **Add the stack.** In **Docker → Compose**, click **Add Stack** and name it `rgb-commander-studio`. When the editor opens, paste in this repository's [`docker-compose.yml`](docker-compose.yml):
 
-If the repository stays private, the package does too. Either run `docker login ghcr.io` on Unraid with a personal access token that has `read:packages`, or use option B. The template's icon also only loads from a public repository.
-
-**Option B: build it yourself, no registry.** From this folder on any machine with Docker:
-
-```sh
-docker build -t rgb-commander-studio:latest .
-docker save rgb-commander-studio:latest | ssh root@tower docker load
-```
-
-Then use `rgb-commander-studio:latest` as the Repository in the template. Unraid will say no updates are available; that's expected for local images.
-
-### Add the container
-
-1. Put the template on the flash drive. On the Unraid terminal:
-
-   ```sh
-   wget -O /boot/config/plugins/dockerMan/templates-user/my-rgb-commander-studio.xml \
-     https://raw.githubusercontent.com/orestes7272/rgb-commander-config-generator/main/unraid/rgb-commander-studio.xml
+   ```yaml
+   # RGB Commander Studio on Unraid (Compose Manager Plus) or any Docker host.
+   # Change the host side (left of each colon) of the port and folders to suit.
+   services:
+     rgb-commander-studio:
+       image: ghcr.io/orestes7272/rgb-commander-config-generator:latest
+       # To build on the server instead of pulling, copy the repository there,
+       # replace the image line with this one and use "Build & Up":
+       # build: /mnt/user/appdata/rgb-commander-studio-src
+       container_name: rgb-commander-studio
+       restart: unless-stopped
+       ports:
+         - "8080:8080" # web UI
+       environment:
+         PUID: "99" # write files as nobody:users, like the rest of the array
+         PGID: "100"
+         UMASK: "002"
+         # AUTH_PASSWORD: "change-me" # optional login, user name "admin"
+       volumes:
+         - /mnt/user/appdata/rgb-commander-studio:/config # schemes, layout, settings, backups
+         - /mnt/user/syncthing/rgbcommander/rgba:/output # published .rgba files; share this folder with Syncthing
+       labels:
+         # WebUI link and icon on Unraid's Docker tab
+         net.unraid.docker.webui: "http://[IP]:[PORT:8080]/"
+         net.unraid.docker.icon: "https://raw.githubusercontent.com/orestes7272/rgb-commander-config-generator/main/public/icon-256.png"
    ```
 
-   Or copy `unraid/rgb-commander-studio.xml` there through the `flash` SMB share (`config/plugins/dockerMan/templates-user/`).
-2. **Docker → Add Container → Template:** pick *rgb-commander-studio* under *User templates*. For option B, change Repository to `rgb-commander-studio:latest`.
-3. Check the settings and **Apply**:
+   Check the two folders on the left of the `volumes` lines:
+   - `/mnt/user/appdata/rgb-commander-studio` holds the app's schemes, panel layout, settings and backups.
+   - `/mnt/user/syncthing/rgbcommander/rgba` is where published `.rgba` files go: the folder you'll share with the cabinet in step 2. Keep it inside a share that already exists (add one under **Shares** if needed); Docker creates any missing subfolders.
 
-| Setting | Default | What it's for |
-|---|---|---|
-| Web UI port | `8080` | Open `http://tower:8080` |
-| Output folder → `/output` | `/mnt/user/syncthing/rgbcommander/rgba` | Where published `.rgba` files go. Share this folder with Syncthing. |
-| App data → `/config` | `/mnt/user/appdata/rgb-commander-studio` | Schemes, layout, settings, backups |
-| Password | *(empty)* | Optional; if set, log in as `admin` with it |
-| PUID / PGID / UMASK | `99` / `100` / `002` | Files are written as nobody:users, group-writable |
+   Change the first `8080` if that port is taken, and uncomment `AUTH_PASSWORD` if you want a login. Save with Ctrl+S.
+2. **Start it.** Click **Compose Up**, then open `http://tower:8080` or use the container's **WebUI** link on the Docker tab.
+3. **Update it later** with **Pull & Up** from the stack's menu, or turn on the stack's automatic update checks.
 
-The container starts as root only long enough to take ownership of folders Docker created, then runs as PUID:PGID.
+### Where the image comes from
+
+The stack pulls `ghcr.io/orestes7272/rgb-commander-config-generator:latest`, which GitHub builds for you. Every push to `main` runs the tests and publishes a fresh image (see `.github/workflows/container.yml`). After the first build finishes, open **Packages → rgb-commander-config-generator → Package settings** on GitHub and set the visibility to **Public**, so Unraid can pull it without logging in.
+
+To keep the image private instead, log Unraid in to GitHub's registry once from the terminal. Use a personal access token with the `read:packages` scope as the password:
+
+```sh
+docker login ghcr.io -u orestes7272
+```
+
+The Docker tab icon only loads while the repository is public, but everything else works either way.
+
+**Or build it on the server.** Copy this repository to `/mnt/user/appdata/rgb-commander-studio-src` (the `appdata` share works), replace the `image:` line with the commented `build:` line, and use **Build & Up** instead of **Compose Up**. Build & Up again whenever you update the copy.
+
+### How it runs
+
+The container starts as root only long enough to take ownership of folders Docker just created. It then switches to `PUID:PGID` (99:100, nobody:users), so files land on the share like everything else on the array. If the output folder already belongs to another user, for example a Syncthing container running as 1000, publishing stops with a message explaining the fix, and a warning stays in the app's top bar until it's sorted.
+
+Prefer Unraid's classic **Add Container** form? [`unraid/rgb-commander-studio.xml`](unraid/rgb-commander-studio.xml) is a ready-made template with the same settings.
 
 ## 2. Sync to the cabinet with Syncthing
 
@@ -155,8 +176,10 @@ server/          HTTP server and JSON API
 public/          the web app (plain ES modules)
 public/js/core/  file format, wiring, colours, effects: shared by browser and server
 test/            tests (test/fixtures holds a real hand-edited .rgba)
-unraid/          Unraid container template
 device/          cabinet-side auto-restart helper
+unraid/          optional Unraid template (the compose file is the main route)
 ```
+
+To try the container locally, build it with `docker build -t rgb-commander-studio .`.
 
 RGBcommander is © Gijsbrecht De Waegeneer. This project only reads and writes its file format.

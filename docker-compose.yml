@@ -1,17 +1,24 @@
-# For running outside Unraid's template system (or to test locally).
+# RGB Commander Studio on Unraid (Compose Manager Plus) or any Docker host.
+# Change the host side (left of each colon) of the port and folders to suit.
 services:
   rgb-commander-studio:
-    build: .
-    image: rgb-commander-studio:latest
+    image: ghcr.io/orestes7272/rgb-commander-config-generator:latest
+    # To build on the server instead of pulling, copy the repository there,
+    # replace the image line with this one and use "Build & Up":
+    # build: /mnt/user/appdata/rgb-commander-studio-src
     container_name: rgb-commander-studio
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8080:8080" # web UI
     environment:
-      PUID: "99"
+      PUID: "99" # write files as nobody:users, like the rest of the array
       PGID: "100"
       UMASK: "002"
-      # AUTH_PASSWORD: "change-me"   # optional: log in as "admin" with this password
+      # AUTH_PASSWORD: "change-me" # optional login, user name "admin"
     volumes:
-      - /mnt/user/appdata/rgb-commander-studio:/config
-      - /mnt/user/syncthing/rgbcommander/rgba:/output
-    restart: unless-stopped
+      - /mnt/user/appdata/rgb-commander-studio:/config # schemes, layout, settings, backups
+      - /mnt/user/syncthing/rgbcommander/rgba:/output # published .rgba files; share this folder with Syncthing
+    labels:
+      # WebUI link and icon on Unraid's Docker tab
+      net.unraid.docker.webui: "http://[IP]:[PORT:8080]/"
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/orestes7272/rgb-commander-config-generator/main/public/icon-256.png"
