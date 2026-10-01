@@ -89,6 +89,23 @@ The container starts as root only long enough to take ownership of folders Docke
 
 Prefer Unraid's classic **Add Container** form? [`unraid/rgb-commander-studio.xml`](unraid/rgb-commander-studio.xml) is a ready-made template with the same settings.
 
+### Or run it on a Linux desktop (AppImage)
+
+Rather design lighting on your PC? The AppImage is the same app as a single file with Node.js built in. It runs on any recent 64-bit Linux desktop with nothing to install: x86_64, or aarch64 such as Raspberry Pi OS 64-bit.
+
+1. Download `RGB_Commander_Studio-<version>-x86_64.AppImage` from the repository's **Releases** page. Releases are built when you push a version tag (`git tag v1.0.0 && git push --tags`). You can also build it yourself with `scripts/build-appimage.sh`.
+2. Make it executable and start it:
+
+   ```sh
+   chmod +x RGB_Commander_Studio-*.AppImage
+   ./RGB_Commander_Studio-*.AppImage
+   ```
+
+   It opens in its own window and quits when you close that window. If Chrome, Chromium, Brave, Edge or Vivaldi is installed it uses an app window; otherwise it opens a tab in your default browser. Run it once with `--install` to add it to your applications menu.
+3. In **Settings → Output folder**, choose where published files go: a folder Syncthing shares with the cabinet (for example `~/Sync/rgbcommander/rgba`), or a mounted Unraid share. Until you choose, files go to `~/rgbcommander/rgba`.
+
+Schemes, layout and settings are kept in `~/.local/share/rgb-commander-studio`, separately from the Unraid container's. The app only listens on this computer unless you start it with `--host 0.0.0.0`; `--help` lists all options. If your system has no FUSE, add `--appimage-extract-and-run`.
+
 ## 2. Sync to the cabinet with Syncthing
 
 **On Unraid** (e.g. the Syncthing app from Community Applications): add a folder whose path, inside the Syncthing container, is the share you mapped to `/output`. For example, if Syncthing maps `/mnt/user/syncthing` to `/sync`, the folder path is `/sync/rgbcommander/rgba`. Share it with the cabinet.
@@ -158,6 +175,7 @@ Checked against RGBcommander 0.4.0.5: its documentation, its stock files, and ho
 | `AUTH_PASSWORD` | *(unset)* | Turns on HTTP basic auth |
 | `AUTH_USER` | `admin` | User name for basic auth |
 | `BACKUPS_PER_FILE` | `10` | Backups kept per replaced or deleted file |
+| `RCS_BROWSER` | *(auto)* | Desktop app only: the command that opens its window, e.g. `firefox` |
 
 The app is meant for your LAN. It rejects cross-site requests, but if you expose it beyond your network, set `AUTH_PASSWORD` and put it behind HTTPS.
 
@@ -166,17 +184,20 @@ The app is meant for your LAN. It rejects cross-site requests, but if you expose
 No dependencies and no build step: Node 22.2 or newer and a browser.
 
 ```sh
-npm test       # node:test suites for the file format, wiring, effects and API
-npm run dev    # http://localhost:8080, data in .dev/
-npm run icon   # regenerate public/icon-256.png
+npm test          # node:test suites for the file format, wiring, effects, API and desktop launcher
+npm run dev       # http://localhost:8080, data in .dev/
+npm run desktop   # the desktop launcher: opens the app in its own window
+npm run appimage  # build dist/RGB_Commander_Studio-<version>-<arch>.AppImage (ARCH=aarch64 for ARM)
+npm run icon      # regenerate public/icon-256.png
 ```
 
 ```
-server/          HTTP server and JSON API
+server/          HTTP server and JSON API (desktop.js is the desktop launcher)
 public/          the web app (plain ES modules)
 public/js/core/  file format, wiring, colours, effects: shared by browser and server
 test/            tests (test/fixtures holds a real hand-edited .rgba)
 device/          cabinet-side auto-restart helper
+packaging/       AppImage entry point and menu entry
 unraid/          optional Unraid template (the compose file is the main route)
 ```
 

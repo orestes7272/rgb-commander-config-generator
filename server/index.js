@@ -1,18 +1,23 @@
 import http from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { loadConfig } from './config.js';
-import { prepareDirs, dropPrivileges, isWritable, ownerOf, currentUser, permissionAdvice } from './system.js';
+import { prepareDirs, dropPrivileges, canWrite, ownerOf, currentUser, permissionAdvice } from './system.js';
 import { createApi } from './api.js';
 import { HttpError, send, serveStatic, checkAuth, checkSameOrigin } from './http.js';
 
 const log = (...args) => console.log(new Date().toISOString(), ...args);
 
-export async function createHandler(config) {
-  const api = createApi(config);
+const LOOPBACK_NAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+export async function createHandler(config, hooks) {
+  const api = createApi(config, hooks);
   return async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
     const { pathname } = url;
     try {
+      if (config.loopbackOnly && !LOOPBACK_NAMES.has(String(req.headers.host || '').replace(/:\d+$/, '').toLowerCase())) {
+        throw new HttpError(403, 'This app only answers to localhost');
+      }
       if (pathname !== '/api/health' && !checkAuth(req, res, config)) return;
       if (pathname.startsWith('/api/')) {
         checkSameOrigin(req);
@@ -36,17 +41,23 @@ export async function createHandler(config) {
   };
 }
 
-export async function start(env = process.env) {
+export async function start(env = process.env, hooks = {}) {
   const config = loadConfig(env);
   process.umask(config.umask);
   await prepareDirs(config, log);
   dropPrivileges(config, log);
-  const server = http.createServer(await createHandler(config));
-  await new Promise((resolve) => server.listen(config.port, config.host, resolve));
+  const server = http.createServer(await createHandler(config, hooks));
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(config.port, config.host, () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
   log(`RGB Commander Studio ${config.version} on http://${config.host}:${server.address().port}`);
   log(`Schemes in ${config.dataDir}, .rgba files published to ${config.outputDir}`);
   for (const dir of [config.dataDir, config.outputDir]) {
-    if (await isWritable(dir)) continue;
+    if (await canWrite(dir)) continue;
     const info = await ownerOf(dir);
     log(`WARNING: ${dir} is not writable by ${currentUser()}${info ? ` (it belongs to ${info.owner}, mode ${info.mode})` : ''}. Fix the folder's permissions or set PUID/PGID to its owner.`);
   }

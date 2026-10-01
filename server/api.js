@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { Router, HttpError, send, readJsonBody } from './http.js';
 import { readJson, writeJson, readText, writeFileAtomic, backupFile } from './storage.js';
-import { isWritable, ownerOf, currentUser } from './system.js';
+import { isWritable, canWrite, ownerOf, currentUser } from './system.js';
 import { parseRgba, validateFileName, suggestFileName, expandToPins, prettyName } from '../public/js/core/rgba.js';
 import { getBoard } from '../public/js/core/boards.js';
 import { buildTemplate, sanitizeLayout, DEFAULT_TEMPLATE } from '../public/js/core/layouts.js';
@@ -25,6 +26,7 @@ export const DEFAULT_SETTINGS = {
   simulateHardware: true,
   frameWriteMs: 185,
   showPorts: false,
+  outputDir: '',
 };
 
 function sanitizeSettings(input, current) {
@@ -55,16 +57,44 @@ function looseFileName(name) {
   return name;
 }
 
-export function createApi(config) {
+/**
+ * hooks.onPing / hooks.onBye: set by the desktop launcher, which quits once
+ * the app window stops checking in.
+ */
+export function createApi(config, hooks = {}) {
   const router = new Router();
   const projectsDir = path.join(config.dataDir, 'projects');
   const backupsDir = path.join(config.dataDir, 'backups');
   const settingsFile = path.join(config.dataDir, 'settings.json');
   const layoutFile = path.join(config.dataDir, 'layout.json');
-  const outputFile = (name) => path.join(config.outputDir, `${name}.rgba`);
 
   const getSettings = async () => ({ ...DEFAULT_SETTINGS, ...(await readJson(settingsFile, {})) });
   const eolOf = (settings) => (settings.eol === 'lf' ? '\n' : '\r\n');
+
+  /** Where files are published: fixed by OUTPUT_DIR, or chosen in Settings. */
+  async function outputDir() {
+    if (!config.outputDirEditable) return config.outputDir;
+    return (await getSettings()).outputDir || config.outputDir;
+  }
+  const outputFile = async (name, dir) => path.join(dir ?? (await outputDir()), `${name}.rgba`);
+
+  /** Validate a folder typed into Settings, creating it if needed. '' means the default. */
+  async function checkOutputDir(value) {
+    if (!config.outputDirEditable) throw new HttpError(400, 'The output folder is set by OUTPUT_DIR (the container volume), so change it there');
+    if (value === '' || value === null) return '';
+    if (typeof value !== 'string') throw new HttpError(400, 'The output folder must be a path');
+    let dir = value.trim();
+    if (dir === '~' || dir.startsWith('~/')) dir = path.join(os.homedir(), dir.slice(1));
+    if (!path.isAbsolute(dir)) throw new HttpError(400, 'Use a full path, like /home/you/Sync/rgbcommander/rgba');
+    dir = path.resolve(dir);
+    try {
+      await fs.mkdir(dir, { recursive: true });
+    } catch (err) {
+      throw new HttpError(400, `Can't create ${dir} (${err.code || err.message})`);
+    }
+    if (!(await isWritable(dir))) throw new HttpError(400, `${dir} isn't writable`);
+    return dir;
+  }
 
   async function getLayout() {
     const stored = await readJson(layoutFile);
@@ -102,15 +132,15 @@ export function createApi(config) {
   }
 
   /** How a scheme relates to the file of the same name in the output folder. */
-  async function statusOf(project) {
-    const text = await readText(outputFile(project.fileName));
+  async function statusOf(project, dir) {
+    const text = await readText(await outputFile(project.fileName, dir));
     if (text === null) return 'unpublished';
     const onDisk = fileHash(text, project.board);
     if (onDisk === projectHash(project)) return 'published';
     return onDisk && onDisk === project.publishedHash ? 'changed' : 'foreign';
   }
 
-  async function summary(project) {
+  async function summary(project, dir) {
     return {
       id: project.id,
       name: project.name,
@@ -120,7 +150,7 @@ export function createApi(config) {
       totalMs: totalMs(project),
       updatedAt: project.updatedAt,
       publishedAt: project.publishedAt,
-      status: await statusOf(project),
+      status: await statusOf(project, dir),
       thumb: project.frames[0].pins,
     };
   }
@@ -140,25 +170,40 @@ export function createApi(config) {
 
   // -------------------------------------------------------------------------
 
-  router.add('GET', '/api/health', async () => ({ ok: true }));
+  // Unauthenticated; also lets the desktop launcher recognise a running copy of itself.
+  router.add('GET', '/api/health', async () => ({ ok: true, app: 'rgb-commander-studio' }));
 
-  router.add('GET', '/api/info', async () => ({
-    version: config.version,
-    dataDir: config.dataDir,
-    outputDir: config.outputDir,
-    outputWritable: await isWritable(config.outputDir),
-    dataWritable: await isWritable(config.dataDir),
-    outputOwner: (await ownerOf(config.outputDir))?.owner ?? null,
-    user: currentUser(),
-    auth: Boolean(config.authPassword),
-  }));
+  router.add('GET', '/api/info', async () => {
+    const dir = await outputDir();
+    return {
+      version: config.version,
+      dataDir: config.dataDir,
+      outputDir: dir,
+      outputEditable: config.outputDirEditable,
+      outputWritable: await canWrite(dir),
+      dataWritable: await isWritable(config.dataDir),
+      outputOwner: (await ownerOf(dir))?.owner ?? null,
+      user: currentUser(),
+      auth: Boolean(config.authPassword),
+      desktop: config.desktop,
+    };
+  });
 
   router.add('GET', '/api/settings', getSettings);
   router.add('PUT', '/api/settings', async ({ req }) => {
-    const next = sanitizeSettings(await readJsonBody(req), await getSettings());
+    const body = await readJsonBody(req);
+    const current = await getSettings();
+    const next = sanitizeSettings(body, current);
+    // The whole settings object comes back on every save; only check the folder when it changed.
+    if (body.outputDir !== undefined && body.outputDir !== current.outputDir) next.outputDir = await checkOutputDir(body.outputDir);
     await writeJson(settingsFile, next);
     return next;
   });
+
+  if (hooks.onPing) {
+    router.add('POST', '/api/desktop/ping', async () => (hooks.onPing(), { ok: true }));
+    router.add('POST', '/api/desktop/bye', async () => (hooks.onBye?.(), { ok: true }));
+  }
 
   router.add('GET', '/api/layout', getLayout);
   router.add('PUT', '/api/layout', async ({ req }) => {
@@ -173,7 +218,10 @@ export function createApi(config) {
     return layout;
   });
 
-  router.add('GET', '/api/projects', async () => Promise.all((await allProjects()).map(summary)));
+  router.add('GET', '/api/projects', async () => {
+    const dir = await outputDir();
+    return Promise.all((await allProjects()).map((p) => summary(p, dir)));
+  });
 
   router.add('POST', '/api/projects', async ({ req }) => {
     const body = await readJsonBody(req);
@@ -211,7 +259,7 @@ export function createApi(config) {
   router.add('DELETE', '/api/projects/:id', async ({ params, query }) => {
     const project = await loadProject(params.id);
     if (query.get('file') === '1') {
-      const file = outputFile(project.fileName);
+      const file = await outputFile(project.fileName);
       await backupFile(backupsDir, file, config.backupsPerFile);
       await fs.rm(file, { force: true });
     }
@@ -234,7 +282,7 @@ export function createApi(config) {
     const settings = await getSettings();
     const nameError = validateFileName(project.fileName);
     if (nameError) throw new HttpError(400, nameError);
-    const file = outputFile(project.fileName);
+    const file = await outputFile(project.fileName);
     const current = projectHash(project);
     const existing = await readText(file);
     let backup = null;
@@ -247,6 +295,7 @@ export function createApi(config) {
       if (onDisk !== current) backup = await backupFile(backupsDir, file, config.backupsPerFile);
     }
     const text = projectToRgba(project, { eol: eolOf(settings) });
+    await fs.mkdir(path.dirname(file), { recursive: true });
     await writeFileAtomic(file, text);
     project.publishedAt = new Date().toISOString();
     project.publishedHash = current;
@@ -264,10 +313,15 @@ export function createApi(config) {
     const layout = await getLayout();
     const board = getBoard(layout.board);
     const projects = await allProjects();
+    const dir = await outputDir();
+    const entries = await fs.readdir(dir).catch((err) => {
+      if (err.code === 'ENOENT') return [];
+      throw err;
+    });
     const out = [];
-    for (const entry of await fs.readdir(config.outputDir)) {
+    for (const entry of entries) {
       if (!entry.endsWith('.rgba') || entry.startsWith('.')) continue;
-      const full = path.join(config.outputDir, entry);
+      const full = path.join(dir, entry);
       const stat = await fs.stat(full).catch(() => null);
       if (!stat?.isFile()) continue;
       const name = entry.slice(0, -5);
@@ -294,7 +348,7 @@ export function createApi(config) {
 
   router.add('GET', '/api/files/:name', async ({ params, query, res }) => {
     const name = looseFileName(params.name);
-    const text = await readText(outputFile(name));
+    const text = await readText(await outputFile(name));
     if (text === null) throw new HttpError(404, 'File not found');
     const headers = { 'Content-Type': 'application/xml; charset=utf-8' };
     if (query.get('download') === '1') headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(name)}.rgba"`;
@@ -303,7 +357,7 @@ export function createApi(config) {
 
   router.add('DELETE', '/api/files/:name', async ({ params }) => {
     const name = looseFileName(params.name);
-    const file = outputFile(name);
+    const file = await outputFile(name);
     if ((await readText(file)) === null) throw new HttpError(404, 'File not found');
     const backup = await backupFile(backupsDir, file, config.backupsPerFile);
     await fs.rm(file, { force: true });
@@ -312,7 +366,7 @@ export function createApi(config) {
 
   router.add('POST', '/api/files/:name/import', async ({ params }) => {
     const name = looseFileName(params.name);
-    const text = await readText(outputFile(name));
+    const text = await readText(await outputFile(name));
     if (text === null) throw new HttpError(404, 'File not found');
     const layout = await getLayout();
     const settings = await getSettings();

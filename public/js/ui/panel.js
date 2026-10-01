@@ -81,7 +81,7 @@ export class PanelView {
     this.svg.replaceChildren(
       defs,
       bg,
-      this.options.grid ? svgEl('rect', { x: 0, y: 0, width: w, height: hgt, fill: `url(#${u}-grid)`, 'pointer-events': 'none' }) : null,
+      ...(this.options.grid ? [svgEl('rect', { x: 0, y: 0, width: w, height: hgt, fill: `url(#${u}-grid)`, 'pointer-events': 'none' })] : []),
       edge,
       this.glowLayer,
       this.controlLayer,

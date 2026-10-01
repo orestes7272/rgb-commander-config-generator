@@ -18,13 +18,17 @@ async function chownTree(dir, uid, gid) {
 }
 
 export async function prepareDirs(config, log) {
-  for (const dir of [config.dataDir, config.outputDir]) await fs.mkdir(dir, { recursive: true });
+  // A fixed output folder (the Docker volume) is set up front; one chosen in
+  // Settings is created when something is first published to it.
+  const fixedOutput = !config.outputDirEditable;
+  if (fixedOutput) await fs.mkdir(config.outputDir, { recursive: true });
   for (const sub of ['projects', 'backups']) await fs.mkdir(path.join(config.dataDir, sub), { recursive: true });
 
   if (!isRoot() || config.puid === null) return;
   const gid = config.pgid ?? config.puid;
   // The app's own data folder is fully ours; take over anything root left behind.
   await chownTree(config.dataDir, config.puid, gid);
+  if (!fixedOutput) return;
   // The output folder is a user share: only claim it if Docker just created it.
   const out = await fs.stat(config.outputDir);
   if (out.uid === 0) {
@@ -48,6 +52,20 @@ export async function isWritable(dir) {
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Writable, or missing but creatable because its nearest existing parent is writable. */
+export async function canWrite(dir) {
+  for (let current = dir; ; ) {
+    try {
+      await fs.access(current, fs.constants.W_OK);
+      return true;
+    } catch (err) {
+      const parent = path.dirname(current);
+      if (err.code !== 'ENOENT' || parent === current) return false;
+      current = parent;
+    }
   }
 }
 

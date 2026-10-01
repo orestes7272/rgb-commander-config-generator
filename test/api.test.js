@@ -42,7 +42,7 @@ async function api(method, url, body, headers = {}) {
 const pins = (fill) => new Array(96).fill(fill);
 
 test('health, info and defaults', async () => {
-  assert.deepEqual((await api('GET', '/api/health')).body, { ok: true });
+  assert.deepEqual((await api('GET', '/api/health')).body, { ok: true, app: 'rgb-commander-studio' });
   const info = (await api('GET', '/api/info')).body;
   assert.equal(info.outputWritable, true);
   const layout = (await api('GET', '/api/layout')).body;
@@ -201,4 +201,65 @@ test('explains permission problems instead of failing with a bare error', { skip
     await new Promise((r) => s.close(r));
     await fs.rm(dir, { recursive: true, force: true });
   }
+});
+
+test('without OUTPUT_DIR the output folder can be changed in Settings', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'rgbcs-edit-'));
+  const { server: s } = await start({ PORT: '0', HOST: '127.0.0.1', DATA_DIR: path.join(dir, 'c'), DEFAULT_OUTPUT_DIR: path.join(dir, 'default'), RCS_DESKTOP: '1' });
+  const url = `http://127.0.0.1:${s.address().port}`;
+  const call = (method, u, body) =>
+    fetch(url + u, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined }).then(async (r) => [r.status, await r.json()]);
+  try {
+    let [, info] = await call('GET', '/api/info');
+    assert.equal(info.outputEditable, true);
+    assert.equal(info.desktop, true);
+    assert.equal(info.outputDir, path.join(dir, 'default'));
+    assert.equal(info.outputWritable, true, 'a missing folder that can be created counts as writable');
+    await assert.rejects(fs.stat(path.join(dir, 'default')), 'the default folder is only created when used');
+
+    const chosen = path.join(dir, 'sync', 'rgbcommander', 'rgba');
+    const [status, settings] = await call('PUT', '/api/settings', { outputDir: chosen });
+    assert.equal(status, 200);
+    assert.equal(settings.outputDir, chosen);
+    assert.ok((await fs.stat(chosen)).isDirectory());
+    [, info] = await call('GET', '/api/info');
+    assert.equal(info.outputDir, chosen);
+
+    const [, created] = await call('POST', '/api/projects', { name: 'x', fileName: 'custom_x', frames: [{ ms: 1, pins: pins(5) }] });
+    assert.equal((await call('POST', `/api/projects/${created.project.id}/publish`, {}))[0], 200);
+    assert.ok(await fs.readFile(path.join(chosen, 'custom_x.rgba'), 'utf8'));
+
+    assert.equal((await call('PUT', '/api/settings', { outputDir: 'relative/path' }))[0], 400);
+    assert.equal((await call('PUT', '/api/settings', { outputDir: '' }))[1].outputDir, '');
+    assert.equal((await call('GET', '/api/info'))[1].outputDir, path.join(dir, 'default'));
+    assert.equal((await call('POST', '/api/desktop/ping'))[0], 404, 'heartbeat only exists when the launcher asks for it');
+  } finally {
+    await new Promise((r) => s.close(r));
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('OUTPUT_DIR (the Docker volume) cannot be changed from Settings', async () => {
+  const changed = await api('PUT', '/api/settings', { outputDir: path.join(tmp, 'elsewhere') });
+  assert.equal(changed.status, 400);
+  assert.match(changed.body.error, /OUTPUT_DIR/);
+  const info = (await api('GET', '/api/info')).body;
+  assert.equal(info.outputEditable, false);
+  // Saving other settings sends the unchanged (empty) folder back, which is fine.
+  assert.equal((await api('PUT', '/api/settings', { ...(await api('GET', '/api/settings')).body, showPorts: true })).status, 200);
+});
+
+test('a server bound to localhost only answers requests for localhost', async () => {
+  const get = (host) =>
+    new Promise((resolve, reject) => {
+      const req = http.request({ host: '127.0.0.1', port: server.address().port, path: '/api/health', headers: { Host: host } }, (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      });
+      req.on('error', reject);
+      req.end();
+    });
+  assert.equal(await get(`127.0.0.1:${server.address().port}`), 200);
+  assert.equal(await get(`localhost:${server.address().port}`), 200);
+  assert.equal(await get('rebind.evil.example'), 403);
 });

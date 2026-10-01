@@ -2359,3 +2359,8 @@ dl.about dd {
 .callout ul {
   margin: 6px 0;
 }
+
+.path-input {
+  flex: 1;
+  min-width: 260px;
+}

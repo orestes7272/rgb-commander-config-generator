@@ -10,3 +10,6 @@ scripts
 *.rgba
 docker-compose.yml
 docs
+build
+dist
+packaging

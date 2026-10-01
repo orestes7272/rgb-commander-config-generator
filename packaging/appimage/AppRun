@@ -1,0 +1,4 @@
+#!/bin/sh
+# AppImage entry point: the bundled Node.js runs the desktop launcher.
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/bin/node" "$HERE/usr/lib/rgb-commander-studio/server/desktop.js" "$@"

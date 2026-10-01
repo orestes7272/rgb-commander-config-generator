@@ -28,6 +28,45 @@ export class SettingsView {
     }
   }
 
+  async saveOutput(value) {
+    const dir = value.trim();
+    try {
+      await store.saveSettings({ outputDir: dir });
+      await store.refreshInfo();
+      toast(dir ? `Publishing to ${store.info.outputDir}` : 'Back to the default folder', { kind: 'success', timeout: 2500 });
+    } catch (err) {
+      errorToast(err, 'Could not use that folder');
+    }
+    this.render();
+  }
+
+  outputRow(info, s) {
+    const badge = h('span.badge.' + (info.outputWritable ? 'ok' : 'error'), icon(info.outputWritable ? 'check' : 'alert', { size: 14 }), info.outputWritable ? 'writable' : 'not writable');
+    if (!info.outputEditable) {
+      return h(
+        'div.setting.stacked',
+        h('div', h('strong', 'Output folder'), h('p', 'Published .rgba files land here (the path inside the container). Map it to the share Syncthing sends to your cabinet.')),
+        h('div.path-row', h('code.path', info.outputDir), badge),
+        info.outputWritable ? null : permissionHelp(info.outputDir, info),
+      );
+    }
+    return h(
+      'div.setting.stacked',
+      h(
+        'div',
+        h('strong', 'Output folder'),
+        h('p', 'Published .rgba files land here. Point it at a folder Syncthing shares with your cabinet, or at a mounted Unraid share. It’s created if it doesn’t exist yet.'),
+      ),
+      h(
+        'div.path-row',
+        h('input.mono.path-input', { type: 'text', value: info.outputDir, spellcheck: 'false', 'aria-label': 'Output folder', onchange: (e) => this.saveOutput(e.target.value) }),
+        badge,
+      ),
+      s.outputDir ? h('div', h('button.btn.small.ghost', { type: 'button', onclick: () => this.saveOutput('') }, 'Use the default folder')) : null,
+      info.outputWritable ? null : h('p.field-msg.error', 'The app can’t write to this folder. Choose another one, or fix its permissions.'),
+    );
+  }
+
   mountInfoListener() {
     this.unsub ??= store.on('info', () => this.render());
   }
@@ -49,16 +88,7 @@ export class SettingsView {
       h(
         'section.card',
         h('h2', 'Output'),
-        h(
-          'div.setting.stacked',
-          h('div', h('strong', 'Output folder'), h('p', 'Published .rgba files land here (the path inside the container). Map it to the share Syncthing sends to your cabinet.')),
-          h(
-            'div.path-row',
-            h('code.path', info.outputDir),
-            h('span.badge.' + (info.outputWritable ? 'ok' : 'error'), icon(info.outputWritable ? 'check' : 'alert', { size: 14 }), info.outputWritable ? 'writable' : 'not writable'),
-          ),
-          info.outputWritable ? null : permissionHelp(info.outputDir, info),
-        ),
+        this.outputRow(info, s),
         info.dataWritable ? null : h('div.setting.stacked', h('div', h('strong', 'Data folder'), h('code.path', info.dataDir)), permissionHelp(info.dataDir, info)),
         h(
           'label.setting',
@@ -110,7 +140,7 @@ export class SettingsView {
           h('dt', 'Data folder'),
           h('dd', h('code', info.dataDir)),
           h('dt', 'Password'),
-          h('dd', info.auth ? 'On (AUTH_PASSWORD is set)' : 'Off. Set AUTH_PASSWORD on the container to require one.'),
+          h('dd', info.auth ? 'On (AUTH_PASSWORD is set)' : info.desktop ? 'Off. Set AUTH_PASSWORD before starting the app to require one.' : 'Off. Set AUTH_PASSWORD on the container to require one.'),
         ),
         h(
           'p.hint',

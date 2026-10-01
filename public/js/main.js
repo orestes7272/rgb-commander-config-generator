@@ -5,7 +5,6 @@ import { LayoutView } from './views/layout.js';
 import { FilesView } from './views/files.js';
 import { SettingsView } from './views/settings.js';
 import { closeMenu } from './ui/menu.js';
-import { api } from './api.js';
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -28,16 +27,19 @@ function renderNav(active) {
   ];
   const info = store.info;
   const blocked = info && (!info.outputWritable || !info.dataWritable);
+  // replaceChildren() would print a null as text, so leave the warning out entirely when there's none.
   nav.replaceChildren(
     ...links.map(([id, label, ic, href]) => h('a.nav-link', { href, 'aria-current': id === active ? 'page' : null }, icon(ic, { size: 16 }), h('span', label))),
-    blocked
-      ? h(
-          'a.nav-warn',
-          { href: '#/settings', title: `The app (running as ${info.user}) can't write to ${!info.outputWritable ? info.outputDir : info.dataDir}. Open Settings for the fix.` },
-          icon('alert', { size: 16 }),
-          h('span', !info.outputWritable ? 'Output folder not writable' : 'Data folder not writable'),
-        )
-      : null,
+    ...(blocked
+      ? [
+          h(
+            'a.nav-warn',
+            { href: '#/settings', title: `The app (running as ${info.user}) can't write to ${!info.outputWritable ? info.outputDir : info.dataDir}. Open Settings for the fix.` },
+            icon('alert', { size: 16 }),
+            h('span', !info.outputWritable ? 'Output folder not writable' : 'Data folder not writable'),
+          ),
+        ]
+      : []),
     h('button.btn.icon-only.ghost.nav-help', { type: 'button', title: 'Keyboard shortcuts (?)', 'aria-label': 'Keyboard shortcuts', onclick: () => showShortcuts() }, icon('keyboard')),
   );
 }
@@ -58,22 +60,16 @@ async function route() {
   renderNav(viewName);
   await current.mount(root, arg ? decodeURIComponent(arg) : null);
   document.body.dataset.view = viewName;
-  refreshInfo();
+  // Folder permissions can be fixed while the app is open, so re-check on navigation.
+  store.refreshInfo().catch(() => {});
 }
 
-/** Folder permissions can be fixed while the app is open, so re-check on navigation. */
-async function refreshInfo() {
-  try {
-    const info = await api.info();
-    const changed = JSON.stringify(info) !== JSON.stringify(store.info);
-    store.info = info;
-    if (changed) {
-      renderNav(currentName);
-      store.emit('info');
-    }
-  } catch {
-    // the next navigation tries again
-  }
+/** The desktop app quits once its window stops checking in. */
+function startHeartbeat() {
+  const ping = () => fetch('api/desktop/ping', { method: 'POST' }).catch(() => {});
+  ping();
+  setInterval(ping, 5000);
+  window.addEventListener('pagehide', () => navigator.sendBeacon('api/desktop/bye'));
 }
 
 async function boot() {
@@ -94,6 +90,8 @@ async function boot() {
   }
   window.addEventListener('hashchange', route);
   store.on('project', () => renderNav(currentName));
+  store.on('info', () => renderNav(currentName));
+  if (store.info.desktop) startHeartbeat();
   await route();
 }
 

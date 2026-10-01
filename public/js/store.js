@@ -94,6 +94,15 @@ export class Store {
     this.projects = projects;
   }
 
+  /** Re-read server facts (folders, permissions). Emits 'info' when something changed. */
+  async refreshInfo() {
+    const info = await api.info();
+    const changed = JSON.stringify(info) !== JSON.stringify(this.info);
+    this.info = info;
+    if (changed) this.emit('info');
+    return info;
+  }
+
   get board() {
     return getBoard(this.layout?.board);
   }
