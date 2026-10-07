@@ -1,6 +1,6 @@
 import { h, icon, iconButton, clear } from '../dom.js';
 import { store } from '../store.js';
-import { LED_PALETTE, ledToScreen, cssRgb, describeColor, toTriplet, toHex, parseHex, rgbToHsv, hsvToRgb, withBrightness, isOff } from '../core/color.js';
+import { LED_PALETTE, ledToScreen, cssRgb, describeColor, toTriplet, toHex, parseHex, rgbToHsv, hsvToRgb, withBrightness, isOff, hueTrack } from '../core/color.js';
 import { blend } from '../core/gradient.js';
 
 /**
@@ -37,6 +37,7 @@ export class ColorStops {
   }
 
   render() {
+    this.hueBase = null;
     clear(this.el);
     const n = this.colors.length;
     this.stopButtons = this.colors.map((c, i) =>
@@ -60,6 +61,18 @@ export class ColorStops {
       ),
     );
     this.bar = h('div.stops-bar', { 'aria-hidden': 'true' });
+
+    this.hue = h('input.slider.hue-slider', { type: 'range', min: 0, max: 359, step: 1, 'aria-label': 'Hue of the selected colour' });
+    this.hue.addEventListener('input', () => {
+      // Hold saturation and brightness from the start of the drag so rounding can't creep in.
+      if (!this.hueBase) {
+        const { s, v } = rgbToHsv(this.colors[this.active]);
+        this.hueBase = { s: s < 0.05 ? 1 : s, v: v || 255 };
+      }
+      this.setActiveColor(hsvToRgb({ h: Number(this.hue.value), ...this.hueBase }));
+    });
+    this.hue.addEventListener('change', () => (this.hueBase = null));
+    this.hueVal = h('span.field-val');
 
     this.brightness = h('input.slider', { type: 'range', min: 0, max: 255, step: 1, 'aria-label': 'Brightness of the selected colour' });
     this.brightness.addEventListener('input', () => this.setActiveColor(withBrightness(this.colors[this.active], Number(this.brightness.value))));
@@ -105,6 +118,7 @@ export class ColorStops {
         h('div.stop-editor-head', h('strong', `Colour ${this.active + 1}`), this.activeLabel),
         palette,
         extras,
+        h('div.field', h('div.field-head', h('label', 'Hue'), this.hueVal), this.hue),
         h('div.field', h('div.field-head', h('label', 'Brightness'), this.brightnessVal), this.brightness),
         h('div.hex-row', h('label', 'Hex'), this.hex, h('span.hint', 'raw LED values')),
       ),
@@ -124,6 +138,11 @@ export class ColorStops {
     const stops = this.colors.map((c, i) => `${isOff(c) ? '#202228' : cssRgb(ledToScreen(c, this.previewMode))} ${Math.round((i / (this.colors.length - 1)) * 100)}%`);
     this.bar.style.setProperty('--g', `linear-gradient(90deg, ${stops.join(', ')})`);
     const c = this.colors[this.active];
+    const hsv = rgbToHsv(c);
+    const hue = Math.round(hsv.h) % 360;
+    if (document.activeElement !== this.hue) this.hue.value = String(hue);
+    this.hueVal.textContent = `${document.activeElement === this.hue ? this.hue.value : hue}°`;
+    this.hue.style.setProperty('--track', hueTrack(this.previewMode, this.hueBase?.s ?? hsv.s));
     const v = Math.max(c.r, c.g, c.b);
     if (document.activeElement !== this.brightness) this.brightness.value = String(v);
     this.brightnessVal.textContent = `${Math.round((v / 255) * 100)}% · ${v}/255`;

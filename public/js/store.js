@@ -370,7 +370,13 @@ export class Store {
 
   rememberColor(rgb = this.color) {
     if (isOff(rgb)) return;
-    this.recent = [rgb, ...this.recent.filter((c) => !sameColor(c, rgb))].slice(0, 12);
+    const color = { r: rgb.r, g: rgb.g, b: rgb.b };
+    // Fine-tuning (a few degrees of hue, a notch of brightness) updates the
+    // latest entry instead of filling the list with near-copies.
+    const [latest, ...rest] = this.recent;
+    const nudge = latest && Math.abs(latest.r - color.r) + Math.abs(latest.g - color.g) + Math.abs(latest.b - color.b) <= 24;
+    const others = (nudge ? rest : this.recent).filter((c) => !sameColor(c, color));
+    this.recent = [color, ...others].slice(0, 12);
     saveLocal({ recent: this.recent });
     this.emit('recent');
   }

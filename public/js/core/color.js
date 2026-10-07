@@ -96,6 +96,18 @@ export function ledToScreen(rgb, mode = 'led') {
 
 export const cssRgb = ({ r, g, b }) => `rgb(${r} ${g} ${b})`;
 
+/**
+ * CSS gradient through every hue at a given saturation, as the LEDs show it,
+ * for hue slider tracks. Greys get full colour, since that's what moving the
+ * slider gives them.
+ */
+export function hueTrack(mode = 'led', s = 1) {
+  const sat = s < 0.05 ? 1 : s;
+  const stops = [];
+  for (let hue = 0; hue <= 360; hue += 30) stops.push(`${cssRgb(ledToScreen(hsvToRgb({ h: hue, s: sat, v: 255 }), mode))} ${((hue / 360) * 100).toFixed(1)}%`);
+  return `linear-gradient(90deg, ${stops.join(', ')})`;
+}
+
 /** Relative luminance of a screen colour (for picking readable text). */
 export function luminance({ r, g, b }) {
   const lin = (c) => {

@@ -12,6 +12,7 @@ import {
   LED_PALETTE,
   toTriplet,
   isOff,
+  hueTrack,
 } from '../core/color.js';
 import { RGBCOMMANDER_COLOURS, REQUIRED_COLOUR_COUNT } from '../core/rgbcommander-colours.js';
 import { frameColors } from '../core/project.js';
@@ -51,6 +52,17 @@ export class ColorPicker {
     this.marker = h('div.wheel-marker');
     const wheel = h('div.wheel-wrap', { style: { width: `${WHEEL}px`, height: `${WHEEL}px` } }, this.canvas, this.marker);
     this.bindWheel(wheel);
+
+    // The wheel moves hue and saturation together; this nudges just the hue.
+    this.hue = h('input.slider.hue-slider', { type: 'range', min: 0, max: 359, step: 1, 'aria-label': 'Hue' });
+    this.hueVal = h('span.field-val');
+    this.bindSlider(this.hue, () => {
+      this.hsv.h = Number(this.hue.value);
+      // White and greys have no hue to turn, so give them full colour.
+      if (this.hsv.s < 0.05) this.hsv.s = 1;
+      if (!this.hsv.v) this.hsv.v = this.lastV;
+      this.commitColor(hsvToRgb(this.hsv), 'set');
+    });
 
     this.brightness = h('input.slider.brightness-slider', {
       type: 'range',
@@ -101,6 +113,7 @@ export class ColorPicker {
       h('div.picker-head', this.preview, h('div.picker-meta', this.nameEl, this.valuesEl)),
       this.targetEl,
       h('div.wheel-row', wheel),
+      h('div.field', h('div.field-head', h('label', 'Hue'), this.hueVal), this.hue),
       h('div.field', h('div.field-head', h('label', 'Brightness'), this.brightnessVal), this.brightness),
       h('div.field.lock-row', this.lockBtn),
       h('div.channels', rows),
@@ -236,6 +249,10 @@ export class ColorPicker {
     this.preview.classList.toggle('off', isOff(rgb));
     this.nameEl.textContent = describeColor(rgb);
     this.valuesEl.textContent = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+    const hue = Math.round(this.hsv.h) % 360;
+    this.hue.value = String(hue);
+    this.hueVal.textContent = `${hue}°`;
+    this.hue.style.setProperty('--track', hueTrack(mode, this.hsv.s));
     const pct = Math.round((this.hsv.v / 255) * 100);
     this.brightness.value = String(this.hsv.v);
     this.brightnessVal.textContent = `${pct}% · ${this.hsv.v}/255`;
