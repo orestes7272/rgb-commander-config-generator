@@ -44,4 +44,12 @@ export const api = {
   fileDownloadUrl: (name) => `api/files/${encodeURIComponent(name)}?download=1`,
   deleteFile: (name) => request('DELETE', `api/files/${encodeURIComponent(name)}`),
   importFile: (name) => request('POST', `api/files/${encodeURIComponent(name)}/import`),
+  backups: () => request('GET', 'api/backups'),
+  backupText: (file, id) => request('GET', `api/backups/${encodeURIComponent(file)}/${encodeURIComponent(id)}`),
+  backupDownloadUrl: (file, id) => `api/backups/${encodeURIComponent(file)}/${encodeURIComponent(id)}?download=1`,
+  restoreBackup: (file, id) => request('POST', `api/backups/${encodeURIComponent(file)}/${encodeURIComponent(id)}/restore`, {}),
+  importBackup: (file, id, name) => request('POST', `api/backups/${encodeURIComponent(file)}/${encodeURIComponent(id)}/import`, { name }),
+  deleteBackup: (file, id) => request('DELETE', `api/backups/${encodeURIComponent(file)}/${encodeURIComponent(id)}`),
+  deleteBackupGroup: (file) => request('DELETE', `api/backups/${encodeURIComponent(file)}`),
+  deleteAllBackups: () => request('DELETE', 'api/backups'),
 };

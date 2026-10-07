@@ -2185,21 +2185,46 @@ dl.about dd {
     grid-template-columns: minmax(0, 1fr) var(--inspector);
     position: relative;
   }
+  /* The scheme list slides over the editor; fixed so it's in view however far the page is scrolled. */
   .editor .sidebar {
-    position: absolute;
-    z-index: 20;
-    top: 0;
+    position: fixed;
+    z-index: 40;
+    top: var(--topbar);
     bottom: 0;
     left: 0;
-    width: 280px;
+    width: min(300px, 86vw);
     transform: translateX(-102%);
-    transition: transform 0.2s;
+    transition: transform 0.22s ease;
     box-shadow: var(--shadow);
+    touch-action: pan-y;
+  }
+  /* Swipes start over the list most of the time, and the list is its own scroll
+     container, so it needs pan-y too or the browser claims horizontal swipes. */
+  .editor .scheme-list {
+    touch-action: pan-y;
+  }
+  .editor .sidebar.swiping {
+    transition: none;
   }
   .editor.show-sidebar .sidebar {
     transform: none;
   }
-  .sidebar-toggle {
+  .editor .sidebar-scrim {
+    display: block;
+    position: fixed;
+    z-index: 39;
+    inset: var(--topbar) 0 0 0;
+    background: rgba(4, 5, 8, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s;
+  }
+  .editor.show-sidebar .sidebar-scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .editor .sidebar-toggle,
+  .editor .sidebar-close {
     display: inline-flex;
   }
   .publish-status span:not(.dot) {
@@ -2363,4 +2388,268 @@ dl.about dd {
 .path-input {
   flex: 1;
   min-width: 260px;
+}
+
+/* ---------------------------------------------------------------- gradients */
+
+.gradient-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
+}
+.gradient-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.color-stops {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stops-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stops-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.stop {
+  --c: #000;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid #0d0e12;
+  outline: 1px solid var(--line-2);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.45), transparent 50%), var(--c);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--c) 60%, transparent);
+  cursor: pointer;
+}
+.stop.off {
+  background: var(--surface-3);
+  box-shadow: none;
+}
+.stop.active {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.stop-arrow {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.stops-bar {
+  --g: linear-gradient(90deg, #333, #999);
+  height: 14px;
+  border-radius: 999px;
+  background: var(--g);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.stop-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+.stop-editor-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.stop-name {
+  font: 12px var(--mono);
+  color: var(--text-2);
+}
+.stop-extras {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.swatch.mini {
+  width: 22px;
+  height: 22px;
+}
+.fx-colors {
+  grid-column: 1 / -1;
+}
+@media (max-width: 860px) {
+  .gradient-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------- scheme list: sorting & reordering */
+
+.sidebar-scrim,
+.sidebar-close {
+  display: none;
+}
+.sidebar-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.scheme-item {
+  position: relative;
+  transition: transform 0.15s ease;
+}
+.scheme-item a {
+  padding-right: 26px;
+}
+.scheme-grip {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  width: 22px;
+  height: 34px;
+  margin-top: -17px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-3);
+  cursor: grab;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.scheme-item:hover .scheme-grip,
+.scheme-item:focus-within .scheme-grip,
+.reordering .scheme-grip {
+  opacity: 1;
+}
+@media (hover: none) {
+  .scheme-grip {
+    opacity: 0.7;
+  }
+}
+.scheme-grip:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+.reordering .scheme-item:not(.dragging) a {
+  pointer-events: none;
+}
+.scheme-item.dragging {
+  z-index: 2;
+  transition: none;
+}
+.scheme-item.dragging a {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+.scheme-item.dragging .scheme-grip {
+  cursor: grabbing;
+}
+
+/* ---------------------------------------------------------------- backups */
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.card-head h2 {
+  margin: 0;
+}
+.card-intro {
+  color: var(--text-3);
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}
+.backup-group {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-top: 8px;
+  background: var(--bg-2);
+}
+.backup-group summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.backup-group summary::-webkit-details-marker {
+  display: none;
+}
+.backup-group summary::before {
+  content: '▸';
+  color: var(--text-3);
+}
+.backup-group[open] summary::before {
+  content: '▾';
+}
+.backup-file {
+  font-weight: 600;
+}
+.backup-meta {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.backup-group-delete {
+  margin-left: auto;
+}
+.muted-badge {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.backup-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+.backup-thumb {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.backup-thumb .thumb {
+  display: block;
+  border-radius: 6px;
+}
+.backup-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 12.5px;
+  min-width: 0;
+}
+.backup-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+@media (max-width: 860px) {
+  .backup-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .backup-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
 }

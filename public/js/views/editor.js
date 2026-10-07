@@ -9,6 +9,7 @@ import { Player, buildSchedule } from '../player.js';
 import { openDialog, confirmDialog, toast, errorToast } from '../ui/dialogs.js';
 import { showMenu } from '../ui/menu.js';
 import { openEffectsDialog } from '../ui/effects-dialog.js';
+import { openGradientDialog } from '../ui/gradient-dialog.js';
 import { openSnippetsDialog } from '../ui/snippets-dialog.js';
 import { openNewSchemeDialog, openRenameDialog, importLocalFile } from '../ui/new-scheme-dialog.js';
 import { getControlColor, setControlColor } from '../core/project.js';
@@ -39,7 +40,7 @@ export class EditorView {
     this.workspace = h('section.workspace');
     this.picker = new ColorPicker();
     this.inspector = h('aside.inspector', this.picker.el);
-    this.el.replaceChildren(this.sidebar, this.workspace, this.inspector);
+    this.el.replaceChildren(this.sidebar, this.scrim, this.workspace, this.inspector);
     this.buildWorkspace();
 
     this.unsubs.push(
@@ -76,6 +77,7 @@ export class EditorView {
     const exists = id && store.projects.some((p) => p.id === id);
     if (projectId && !exists) toast('That scheme no longer exists', { kind: 'warn' });
     this.stop();
+    this.toggleSidebar(false);
     if (exists) {
       try {
         await store.openProject(id);
@@ -102,46 +104,220 @@ export class EditorView {
       if (fileInput.files[0]) importLocalFile(fileInput.files[0]);
       fileInput.value = '';
     });
+    this.sortBtn = iconButton('sort', { title: 'Sort schemes', cls: 'small ghost', onclick: (e) => this.sortMenu(e.currentTarget) });
     this.sidebar = h(
       'aside.sidebar',
-      { 'aria-label': 'Schemes' },
-      h('div.sidebar-head', h('h2', 'Schemes'), iconButton('plus', { label: 'New', cls: 'primary small', onclick: () => openNewSchemeDialog() })),
+      { id: 'scheme-sidebar', 'aria-label': 'Schemes' },
+      h(
+        'div.sidebar-head',
+        h('h2', 'Schemes'),
+        h('div.sidebar-head-actions', this.sortBtn, iconButton('plus', { label: 'New', cls: 'primary small', onclick: () => openNewSchemeDialog() }), iconButton('left', { title: 'Hide schemes', cls: 'small ghost sidebar-close', onclick: () => this.toggleSidebar(false, { restoreFocus: true }) })),
+      ),
       this.search,
       this.list,
       h('div.sidebar-foot', iconButton('upload', { label: 'Import .rgba…', cls: 'ghost small', title: 'Import an .rgba file from this computer', onclick: () => fileInput.click() }), fileInput),
     );
+    // On narrow screens the list slides over the editor: tap outside or swipe it left to close.
+    this.scrim = h('div.sidebar-scrim', { onclick: () => this.toggleSidebar(false) });
+    this.sidebar.addEventListener('pointerdown', (e) => this.startSwipe(e));
+    this.sidebar.addEventListener('click', (e) => {
+      if (!this.swallowClick) return;
+      this.swallowClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+  }
+
+  get sidebarIsOverlay() {
+    return window.matchMedia('(max-width: 1100px)').matches;
+  }
+
+  toggleSidebar(open = !this.el.classList.contains('show-sidebar'), { restoreFocus = false } = {}) {
+    this.el.classList.toggle('show-sidebar', open);
+    this.sidebarToggle?.setAttribute('aria-expanded', String(open));
+    if (open && this.sidebarIsOverlay) this.sidebar.querySelector('.sidebar-close')?.focus();
+    if (!open && restoreFocus) this.sidebarToggle?.focus();
+  }
+
+  /** Drag the slid-out list to the left to put it away. */
+  startSwipe(e) {
+    if (!this.el.classList.contains('show-sidebar') || !this.sidebarIsOverlay || e.target.closest('.scheme-grip, input')) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let dx = 0;
+    let swiping = null;
+    const move = (ev) => {
+      const mx = ev.clientX - startX;
+      const my = ev.clientY - startY;
+      if (swiping === null) {
+        if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+        swiping = mx < 0 && Math.abs(mx) > Math.abs(my);
+        if (!swiping) return finish();
+        this.sidebar.setPointerCapture(ev.pointerId);
+        this.sidebar.classList.add('swiping');
+      }
+      dx = Math.min(0, mx);
+      this.sidebar.style.transform = `translateX(${dx}px)`;
+      this.scrim.style.opacity = String(Math.max(0, 1 + dx / this.sidebar.offsetWidth));
+    };
+    const finish = () => {
+      this.sidebar.removeEventListener('pointermove', move);
+      this.sidebar.removeEventListener('pointerup', finish);
+      this.sidebar.removeEventListener('pointercancel', finish);
+      if (!swiping) return;
+      this.sidebar.classList.remove('swiping');
+      this.sidebar.style.transform = '';
+      this.scrim.style.opacity = '';
+      this.swallowClick = true;
+      setTimeout(() => (this.swallowClick = false), 0);
+      if (dx < -60) this.toggleSidebar(false);
+    };
+    this.sidebar.addEventListener('pointermove', move);
+    this.sidebar.addEventListener('pointerup', finish);
+    this.sidebar.addEventListener('pointercancel', finish);
+  }
+
+  sortMenu(anchor) {
+    const modes = [
+      ['recent', 'Recently edited'],
+      ['name', 'Name'],
+      ['file', 'File name'],
+      ['published', 'Recently published'],
+      ['custom', 'My order (drag to arrange)'],
+    ];
+    showMenu(
+      anchor,
+      modes.map(([id, label]) => ({ label, icon: store.schemeSort === id ? 'check' : null, onClick: () => store.setSchemeSort(id) })),
+    );
   }
 
   renderSchemeList() {
+    // Re-rendering mid-drag would pull the item out from under the pointer.
+    if (this.reordering) {
+      this.listStale = true;
+      return;
+    }
     const q = this.search.value.trim().toLowerCase();
+    const sortLabels = { recent: 'recently edited', name: 'name', file: 'file name', published: 'recently published', custom: 'your own order' };
+    this.sortBtn.title = `Sorted by ${sortLabels[store.schemeSort] || 'recently edited'}. Click to change.`;
+    const focusedId = this.list.contains(document.activeElement) ? document.activeElement.closest('.scheme-item')?.dataset.id : null;
     clear(this.list);
-    const items = store.projects.filter((p) => !q || p.name.toLowerCase().includes(q) || p.fileName.toLowerCase().includes(q));
-    if (!store.projects.length) {
+    const all = store.sortedProjects();
+    const items = all.filter((p) => !q || p.name.toLowerCase().includes(q) || p.fileName.toLowerCase().includes(q));
+    if (!all.length) {
       this.list.append(h('li.empty-note', 'No schemes yet.'));
       return;
     }
     if (!items.length) this.list.append(h('li.empty-note', 'Nothing matches.'));
+    const canReorder = !q && all.length > 1;
     for (const p of items) {
       const canvas = h('canvas.thumb');
       drawThumb(canvas, store.layout, store.controls, p.thumb, { previewMode: store.settings.previewMode, cssWidth: 76 });
       const [tone, label] = STATUS_TEXT[p.status] || STATUS_TEXT.unpublished;
-      this.list.append(
+      const li = h(
+        'li.scheme-item' + (store.project?.id === p.id ? '.active' : ''),
+        { dataset: { id: p.id } },
         h(
-          'li.scheme-item' + (store.project?.id === p.id ? '.active' : ''),
+          'a',
+          {
+            href: `#/editor/${p.id}`,
+            'aria-current': store.project?.id === p.id ? 'page' : null,
+            onkeydown: (e) => canReorder && this.keyboardReorder(e, p.id),
+          },
+          canvas,
           h(
-            'a',
-            { href: `#/editor/${p.id}`, 'aria-current': store.project?.id === p.id ? 'page' : null },
-            canvas,
-            h(
-              'div.scheme-text',
-              h('strong', p.name),
-              h('span.mono', `${p.fileName}.rgba`),
-              h('span.scheme-status', h('span.dot.' + tone), p.frameCount > 1 ? `${label} · ${p.frameCount} frames` : label),
-            ),
+            'div.scheme-text',
+            h('strong', p.name),
+            h('span.mono', `${p.fileName}.rgba`),
+            h('span.scheme-status', h('span.dot.' + tone), p.frameCount > 1 ? `${label} · ${p.frameCount} frames` : label),
           ),
         ),
       );
+      if (canReorder) {
+        li.append(
+          h(
+            'button.scheme-grip',
+            {
+              type: 'button',
+              tabindex: -1,
+              title: 'Drag to reorder (or Alt+↑/↓ on a focused scheme)',
+              'aria-label': `Reorder ${p.name}`,
+              onpointerdown: (e) => this.startReorder(e, p.id, li),
+            },
+            icon('grip', { size: 16 }),
+          ),
+        );
+      }
+      this.list.append(li);
     }
+    if (focusedId) this.list.querySelector(`[data-id="${focusedId}"] a`)?.focus();
+  }
+
+  async keyboardReorder(e, id) {
+    if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    const ids = store.sortedProjects().map((p) => p.id);
+    const to = ids.indexOf(id) + (e.key === 'ArrowUp' ? -1 : 1);
+    if (to < 0 || to >= ids.length) return;
+    const switched = store.moveScheme(id, to);
+    this.list.querySelector(`[data-id="${id}"] a`)?.focus();
+    this.announceSort(await switched);
+  }
+
+  announceSort(switched) {
+    if (switched) toast('Switched to your own order. Pick another sort from the ↕ menu any time.', { timeout: 4000 });
+  }
+
+  /** Drag a scheme by its grip; the others slide out of the way. */
+  startReorder(e, id, li) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    const grip = e.currentTarget;
+    grip.setPointerCapture(e.pointerId);
+    const items = [...this.list.querySelectorAll('.scheme-item')];
+    const from = items.indexOf(li);
+    const mids = items.map((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2;
+    });
+    const slot = items.length > 1 ? Math.abs(mids[1] - mids[0]) : li.offsetHeight;
+    const startY = e.clientY;
+    const startScroll = this.list.scrollTop;
+    let to = from;
+    this.reordering = true;
+    li.classList.add('dragging');
+    this.list.classList.add('reordering');
+
+    const move = (ev) => {
+      const box = this.list.getBoundingClientRect();
+      if (ev.clientY < box.top + 28) this.list.scrollTop -= 10;
+      else if (ev.clientY > box.bottom - 28) this.list.scrollTop += 10;
+      const scrolled = this.list.scrollTop - startScroll;
+      li.style.transform = `translateY(${ev.clientY - startY + scrolled}px)`;
+      const y = ev.clientY + scrolled;
+      to = mids.filter((m, i) => i !== from && m < y).length;
+      items.forEach((el, i) => {
+        if (i === from) return;
+        const rank = i < from ? i : i - 1;
+        const final = rank < to ? rank : rank + 1;
+        el.style.transform = final === i ? '' : `translateY(${(final - i) * slot}px)`;
+      });
+    };
+    const end = async () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', end);
+      grip.removeEventListener('pointercancel', end);
+      items.forEach((el) => (el.style.transform = ''));
+      li.classList.remove('dragging');
+      this.list.classList.remove('reordering');
+      this.reordering = false;
+      if (to !== from) this.announceSort(await store.moveScheme(id, to));
+      else if (this.listStale) this.renderSchemeList();
+      this.listStale = false;
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', end);
+    grip.addEventListener('pointercancel', end);
   }
 
   // --- workspace ----------------------------------------------------------------
@@ -154,7 +330,11 @@ export class EditorView {
     this.moreBtn = iconButton('more', { title: 'More actions', onclick: () => this.moreMenu() });
     this.head = h(
       'header.scheme-head',
-      h('button.btn.icon-only.ghost.sidebar-toggle', { type: 'button', 'aria-label': 'Show schemes', onclick: () => this.el.classList.toggle('show-sidebar') }, icon('menu')),
+      (this.sidebarToggle = h(
+        'button.btn.icon-only.ghost.sidebar-toggle',
+        { type: 'button', 'aria-label': 'Schemes', 'aria-controls': 'scheme-sidebar', 'aria-expanded': 'false', title: 'Show schemes', onclick: () => this.toggleSidebar() },
+        icon('menu'),
+      )),
       h('div.scheme-title-wrap', this.titleBtn),
       h('div.head-spacer'),
       this.saveStateEl,
@@ -181,6 +361,7 @@ export class EditorView {
       this.groupBar,
       h('div.tl-sep'),
       iconButton('paint', { label: 'Fill', title: 'Give the selection (or every button) the brush colour', cls: 'small', onclick: () => this.fill() }),
+      iconButton('blend', { label: 'Gradient', title: 'Blend two or three colours across the buttons', kbd: 'G', cls: 'small', onclick: () => (this.stop(), openGradientDialog()) }),
       iconButton('mirror', { label: 'Mirror', title: 'Copy colours between players', cls: 'small', onclick: (e) => this.mirrorMenu(e.currentTarget) }),
       iconButton('moon', { title: 'Dim selection (or everything) 20%', kbd: '[', cls: 'small', onclick: () => this.scale(0.8) }),
       iconButton('sun', { title: 'Brighten selection (or everything) 25%', kbd: ']', cls: 'small', onclick: () => this.scale(1.25) }),
@@ -517,7 +698,9 @@ export class EditorView {
   // --- keyboard -------------------------------------------------------------------
 
   handleKey(e) {
-    if (document.querySelector('dialog[open]') || isTyping(e)) return;
+    if (document.querySelector('dialog[open]')) return;
+    if (e.key === 'Escape' && this.el.classList.contains('show-sidebar') && this.sidebarIsOverlay) return this.toggleSidebar(false, { restoreFocus: true });
+    if (isTyping(e)) return;
     const mod = e.ctrlKey || e.metaKey;
     const key = e.key.toLowerCase();
     // Sliders, checkboxes and buttons keep their own arrow/space/enter behaviour.
@@ -567,6 +750,7 @@ export class EditorView {
       case 'I':
         return store.setTool('pick');
       case 'Escape':
+        if (this.el.classList.contains('show-sidebar') && this.sidebarIsOverlay) return this.toggleSidebar(false, { restoreFocus: true });
         if (this.player.playing) return this.stop();
         return store.select([]);
       case 'Delete':
@@ -584,6 +768,10 @@ export class EditorView {
         e.preventDefault();
         this.stop();
         return store.setFrameIndex(store.frameIndex + 1);
+      case 'g':
+      case 'G':
+        this.stop();
+        return openGradientDialog();
       case '[':
         return this.scale(0.8);
       case ']':
@@ -656,6 +844,7 @@ export function showShortcuts() {
     ['Esc', 'Clear selection / stop playback'],
     ['Del', 'Turn selected buttons off'],
     ['[ and ]', 'Dim / brighten'],
+    ['G', 'Gradient across the buttons'],
     ['Ctrl + C / Ctrl + V', 'Copy a button’s colour / paste onto the selection'],
     ['← / →', 'Previous / next frame'],
     ['Space', 'Play / stop'],

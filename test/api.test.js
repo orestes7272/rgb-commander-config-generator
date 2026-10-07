@@ -263,3 +263,75 @@ test('a server bound to localhost only answers requests for localhost', async ()
   assert.equal(await get(`localhost:${server.address().port}`), 200);
   assert.equal(await get('rebind.evil.example'), 403);
 });
+
+test('the custom scheme order is saved and validated', async () => {
+  const projects = (await api('GET', '/api/projects')).body;
+  const order = projects.map((p) => p.id).reverse();
+  const saved = await api('PUT', '/api/settings', { schemeOrder: [...order, order[0]] });
+  assert.equal(saved.status, 200);
+  assert.deepEqual(saved.body.schemeOrder, order, 'duplicates dropped');
+  assert.equal((await api('PUT', '/api/settings', { schemeOrder: ['../etc/passwd'] })).status, 400);
+  assert.equal((await api('PUT', '/api/settings', { schemeOrder: 'p_abc' })).status, 400);
+});
+
+test('backups can be listed, previewed, put back, opened and deleted', async () => {
+  const file = path.join(outputDir, 'custom_backup_test.rgba');
+  const version = (v) => `<anim>\r\n\t<frm dec="${pins(v).join(',')}"/>\r\n\t<tms dec="100"/>\r\n</anim>\r\n`;
+  await fs.writeFile(file, version(1));
+  const { project } = (await api('POST', '/api/projects', { name: 'Backup test', fileName: 'custom_backup_test', frames: [{ ms: 100, pins: pins(2) }] })).body;
+  assert.equal((await api('POST', `/api/projects/${project.id}/publish`, { overwrite: true })).status, 200); // backs up version 1
+  await fs.writeFile(file, version(3));
+  assert.equal((await api('DELETE', '/api/files/custom_backup_test')).status, 200); // backs up version 3
+
+  let list = (await api('GET', '/api/backups')).body;
+  assert.equal(list.keep, 10);
+  let group = list.groups.find((g) => g.file === 'custom_backup_test.rgba');
+  assert.equal(group.versions.length, 2);
+  assert.equal(group.inOutput, false);
+  const [newest, oldest] = group.versions;
+  assert.equal(newest.thumb[0], 3);
+  assert.equal(oldest.thumb[0], 1);
+  assert.equal(newest.frameCount, 1);
+
+  const raw = await fetch(`${base}/api/backups/custom_backup_test.rgba/${encodeURIComponent(oldest.id)}?download=1`);
+  assert.match(raw.headers.get('content-disposition'), /attachment/);
+  assert.equal(await raw.text(), version(1));
+
+  // Put the oldest version back: the output folder gets it; nothing to back up since the file was deleted.
+  const restored = await api('POST', `/api/backups/custom_backup_test.rgba/${encodeURIComponent(oldest.id)}/restore`, {});
+  assert.equal(restored.status, 200);
+  assert.equal(restored.body.backup, null);
+  assert.equal(await fs.readFile(file, 'utf8'), version(1));
+  // Putting back another version keeps a copy of the one being replaced.
+  const again = await api('POST', `/api/backups/custom_backup_test.rgba/${encodeURIComponent(newest.id)}/restore`, {});
+  assert.ok(again.body.backup);
+  assert.equal(await fs.readFile(file, 'utf8'), version(3));
+  group = (await api('GET', '/api/backups')).body.groups.find((g) => g.file === 'custom_backup_test.rgba');
+  assert.equal(group.versions.length, 3);
+  assert.equal(group.inOutput, true);
+
+  const opened = await api('POST', `/api/backups/custom_backup_test.rgba/${encodeURIComponent(oldest.id)}/import`, { name: 'From a backup' });
+  assert.equal(opened.status, 200);
+  assert.equal(opened.body.project.name, 'From a backup');
+  assert.equal(opened.body.project.fileName, 'custom_backup_test');
+  assert.equal(opened.body.project.frames[0].pins[0], 1);
+
+  assert.equal((await api('DELETE', `/api/backups/custom_backup_test.rgba/${encodeURIComponent(oldest.id)}`)).status, 200);
+  group = (await api('GET', '/api/backups')).body.groups.find((g) => g.file === 'custom_backup_test.rgba');
+  assert.equal(group.versions.length, 2);
+  assert.equal((await api('DELETE', '/api/backups/custom_backup_test.rgba')).status, 200);
+  list = (await api('GET', '/api/backups')).body;
+  assert.ok(!list.groups.some((g) => g.file === 'custom_backup_test.rgba'));
+  assert.ok(list.groups.length > 0, 'other files keep their backups');
+  assert.equal((await api('DELETE', '/api/backups')).status, 200);
+  assert.deepEqual((await api('GET', '/api/backups')).body.groups, []);
+  assert.equal(await fs.readFile(file, 'utf8'), version(3), 'deleting backups never touches the output folder');
+});
+
+test('backup routes refuse paths outside the backups folder', async () => {
+  for (const url of ['/api/backups/..%2F..%2Fpackage.json/x.rgba', '/api/backups/x.rgba/..%2F..%2F..%2Fpackage.json', '/api/backups/.hidden.rgba/a.rgba', '/api/backups/x.txt/a.rgba']) {
+    assert.equal((await api('GET', url)).status, 404, url);
+  }
+  assert.equal((await api('DELETE', '/api/backups/..%2Fprojects')).status, 404);
+  assert.ok((await fs.readdir(path.join(tmp, 'config', 'projects'))).length > 0, 'the projects folder survived');
+});

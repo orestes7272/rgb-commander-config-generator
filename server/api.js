@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS = {
   frameWriteMs: 185,
   showPorts: false,
   outputDir: '',
+  schemeOrder: [],
 };
 
 function sanitizeSettings(input, current) {
@@ -46,6 +47,13 @@ function sanitizeSettings(input, current) {
   intIn('frameWriteMs', 0, 2000);
   if (input.previewMode === 'led' || input.previewMode === 'raw') s.previewMode = input.previewMode;
   for (const key of ['simulateHardware', 'showPorts']) if (typeof input[key] === 'boolean') s[key] = input[key];
+  if (input.schemeOrder !== undefined) {
+    const order = input.schemeOrder;
+    if (!Array.isArray(order) || order.length > 5000 || !order.every((id) => typeof id === 'string' && PROJECT_ID.test(id))) {
+      throw new HttpError(400, 'schemeOrder must be a list of scheme ids');
+    }
+    s.schemeOrder = [...new Set(order)];
+  }
   return s;
 }
 
@@ -382,6 +390,119 @@ export function createApi(config, hooks = {}) {
     const extra = fileName === name ? { publishedHash: fileHash(text, layout.board), publishedAt: new Date().toISOString() } : {};
     const result = await saveNewProject(imported.project, extra);
     return { ...result, warnings: [...imported.warnings, ...result.warnings] };
+  });
+
+  // --- backups ----------------------------------------------------------------
+  // backups/<file>.rgba/<timestamp>_<file>.rgba, written whenever a file in the
+  // output folder is replaced or deleted (see storage.backupFile).
+
+  const BACKUP_NAME = /^[^/\\\0]+\.rgba$/;
+  const backupPath = (file, id) => {
+    if (!BACKUP_NAME.test(file) || file.startsWith('.')) throw new HttpError(404, 'Backup not found');
+    if (id === undefined) return path.join(backupsDir, file);
+    if (!BACKUP_NAME.test(id) || id.startsWith('.')) throw new HttpError(404, 'Backup not found');
+    return path.join(backupsDir, file, id);
+  };
+  async function readBackup(file, id) {
+    const text = await readText(backupPath(file, id));
+    if (text === null) throw new HttpError(404, 'Backup not found');
+    return text;
+  }
+
+  router.add('GET', '/api/backups', async () => {
+    const board = getBoard((await getLayout()).board);
+    const dir = await outputDir();
+    const groups = [];
+    for (const file of await fs.readdir(backupsDir).catch(() => [])) {
+      if (!BACKUP_NAME.test(file) || file.startsWith('.')) continue;
+      const folder = path.join(backupsDir, file);
+      const versions = [];
+      for (const id of await fs.readdir(folder).catch(() => [])) {
+        if (!BACKUP_NAME.test(id) || id.startsWith('.')) continue;
+        const full = path.join(folder, id);
+        const stat = await fs.stat(full).catch(() => null);
+        if (!stat?.isFile()) continue;
+        const version = { id, savedAt: stat.mtime.toISOString(), size: stat.size };
+        try {
+          const { frames } = parseRgba(await fs.readFile(full, 'utf8'));
+          version.frameCount = frames.length;
+          version.totalMs = frames.reduce((n, f) => n + f.delay, 0);
+          version.thumb = expandToPins(frames[0].values, board.pinCount);
+        } catch (err) {
+          version.error = err.message;
+        }
+        versions.push(version);
+      }
+      if (!versions.length) continue;
+      versions.sort((a, b) => b.savedAt.localeCompare(a.savedAt) || b.id.localeCompare(a.id));
+      groups.push({
+        file,
+        name: file.slice(0, -5),
+        versions,
+        size: versions.reduce((n, v) => n + v.size, 0),
+        inOutput: (await readText(path.join(dir, file))) !== null,
+      });
+    }
+    groups.sort((a, b) => b.versions[0].savedAt.localeCompare(a.versions[0].savedAt));
+    return { keep: config.backupsPerFile, groups };
+  });
+
+  router.add('GET', '/api/backups/:file/:id', async ({ params, query, res }) => {
+    const text = await readBackup(params.file, params.id);
+    const headers = { 'Content-Type': 'application/xml; charset=utf-8' };
+    if (query.get('download') === '1') headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(params.file)}"`;
+    send(res, 200, text, headers);
+  });
+
+  // Put a backed-up version back in the output folder. Whatever is there now is
+  // backed up first, so this can be undone the same way.
+  router.add('POST', '/api/backups/:file/:id/restore', async ({ params }) => {
+    const text = await readBackup(params.file, params.id);
+    try {
+      parseRgba(text);
+    } catch (err) {
+      throw new HttpError(400, `That backup isn't a readable .rgba file: ${err.message}`);
+    }
+    const target = await outputFile(params.file.slice(0, -5));
+    const existing = await readText(target);
+    const backup = existing !== null && existing !== text ? await backupFile(backupsDir, target, config.backupsPerFile) : null;
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await writeFileAtomic(target, text);
+    return { file: params.file, backup: backup ? path.basename(backup) : null };
+  });
+
+  router.add('POST', '/api/backups/:file/:id/import', async ({ req, params }) => {
+    const body = await readJsonBody(req);
+    const text = await readBackup(params.file, params.id);
+    const name = params.file.slice(0, -5);
+    const layout = await getLayout();
+    const settings = await getSettings();
+    const fileName = validateFileName(name) ? suggestFileName(name) : name;
+    let imported;
+    try {
+      imported = projectFromRgba(text, { name: String(body.name || `${prettyName(name, settings.filePrefix)} (backup)`), fileName, board: layout.board });
+    } catch (err) {
+      throw new HttpError(400, err.message);
+    }
+    const result = await saveNewProject(imported.project);
+    return { ...result, warnings: [...imported.warnings, ...result.warnings] };
+  });
+
+  router.add('DELETE', '/api/backups/:file/:id', async ({ params }) => {
+    await readBackup(params.file, params.id);
+    await fs.rm(backupPath(params.file, params.id), { force: true });
+    await fs.rmdir(backupPath(params.file)).catch(() => {}); // only succeeds once the folder is empty
+    return { ok: true };
+  });
+
+  router.add('DELETE', '/api/backups/:file', async ({ params }) => {
+    await fs.rm(backupPath(params.file), { recursive: true, force: true });
+    return { ok: true };
+  });
+
+  router.add('DELETE', '/api/backups', async () => {
+    for (const entry of await fs.readdir(backupsDir).catch(() => [])) await fs.rm(path.join(backupsDir, entry), { recursive: true, force: true });
+    return { ok: true };
   });
 
   return router;

@@ -1,7 +1,7 @@
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /**
- * Tiny element builder: h('button.primary', { onclick }, 'Save').
+ * Tiny element builder: h('button.primary', { onclick }, 'Save'), h('h2#title', 'Hi').
  * Tags prefixed with "svg:" are created in the SVG namespace.
  */
 export function h(spec, props, ...children) {
@@ -10,8 +10,16 @@ export function h(spec, props, ...children) {
     props = {};
   }
   const svg = spec.startsWith('svg:');
-  const [tag, ...classes] = (svg ? spec.slice(4) : spec).split('.');
-  const el = svg ? document.createElementNS(SVG_NS, tag) : document.createElement(tag || 'div');
+  let tag = 'div';
+  let id = null;
+  const classes = [];
+  for (const part of (svg ? spec.slice(4) : spec).match(/[.#]?[^.#]+/g) || []) {
+    if (part[0] === '.') classes.push(part.slice(1));
+    else if (part[0] === '#') id = part.slice(1);
+    else tag = part;
+  }
+  const el = svg ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
+  if (id) el.id = id;
   if (classes.length) el.setAttribute('class', classes.join(' '));
   for (const [key, value] of Object.entries(props)) {
     if (value === undefined || value === null || value === false) continue;
@@ -89,6 +97,12 @@ const ICONS = {
   refresh: 'M20 12a8 8 0 11-2.3-5.7M20 4v5h-5',
   magnet: 'M6 4v8a6 6 0 0012 0V4h-4v8a2 2 0 01-4 0V4z',
   hash: 'M5 9h14M5 15h14M10 4L8 20M16 4l-2 16',
+  blend: 'M9 15a6 6 0 100-12 6 6 0 000 12zM15 21a6 6 0 100-12 6 6 0 000 12z',
+  grip: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
+  sort: 'M7 4v16M4 17l3 3 3-3M17 20V4M14 7l3-3 3 3',
+  history: 'M3.5 12a8.5 8.5 0 102.5-6M3.5 4v4h4M12 8v4l3 2',
+  eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
+  reverse: 'M4 8h13l-3-3M20 16H7l3 3',
 };
 
 export function icon(name, { size = 18, title } = {}) {
@@ -99,6 +113,7 @@ export function icon(name, { size = 18, title } = {}) {
     svgEl('path', { d: ICONS[name] || ICONS.info, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   );
   if (name === 'play' || name === 'stop') el.querySelector('path').setAttribute('fill', 'currentColor');
+  if (name === 'grip') el.querySelector('path').setAttribute('stroke-width', '3');
   return el;
 }
 

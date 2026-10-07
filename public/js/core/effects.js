@@ -12,6 +12,7 @@
 
 import { hsvToRgb, scaleColor, mixColor, clampByte } from './color.js';
 import { getControlColor, setControlColor } from './project.js';
+import { positions, loopColorAt, defaultStops, DIRECTIONS, SPACINGS, BLENDS } from './gradient.js';
 
 const lit = (controls) => controls.filter((c) => c.pins);
 
@@ -36,28 +37,6 @@ function orderControls(controls, order) {
     led: (a, b) => firstPin(a) - firstPin(b),
   };
   return list.sort(sorters[order] || sorters['left-right']);
-}
-
-/** Position of each control along a direction, 0..1. */
-function positions(controls, direction) {
-  const out = new Map();
-  if (!controls.length) return out;
-  if (direction === 'ring') {
-    const cx = controls.reduce((n, c) => n + c.x, 0) / controls.length;
-    const cy = controls.reduce((n, c) => n + c.y, 0) / controls.length;
-    for (const c of controls) out.set(c.id, (Math.atan2(c.y - cy, c.x - cx) / (2 * Math.PI) + 1) % 1);
-    return out;
-  }
-  const axis = direction === 'top-bottom' || direction === 'bottom-top' ? 'y' : 'x';
-  const flip = direction === 'right-left' || direction === 'bottom-top';
-  const vals = controls.map((c) => c[axis]);
-  const min = Math.min(...vals);
-  const span = Math.max(...vals) - min || 1;
-  for (const c of controls) {
-    const p = (c[axis] - min) / span;
-    out.set(c.id, flip ? 1 - p : p);
-  }
-  return out;
 }
 
 function mulberry32(seed) {
@@ -198,9 +177,39 @@ export const EFFECTS = [
       for (let i = 0; i < p.frames; i++) {
         const pins = base.slice();
         for (const c of controls) {
-          const h = 360 * (pos.get(c.id) * p.spread + i / p.frames);
+          // Minus: the colours travel in the chosen direction as the frames advance.
+          const h = 360 * (pos.get(c.id) * p.spread - i / p.frames);
           setControlColor(pins, c.pins, hsvToRgb({ h, s: p.saturation / 100, v }));
         }
+        frames.push(frame(pins, p.ms));
+      }
+      return { mode: 'replace', frames };
+    },
+  },
+  {
+    id: 'gradient',
+    name: 'Gradient',
+    blurb: 'Your own colours flowing across the buttons.',
+    params: [
+      { id: 'colors', label: 'Colours', type: 'colors', min: 2, max: 4, default: null },
+      { id: 'direction', label: 'Direction', type: 'select', options: DIRECTIONS, default: 'left-right' },
+      { id: 'blend', label: 'Blend', type: 'select', options: BLENDS, default: 'rgb' },
+      { id: 'spacing', label: 'Spacing', type: 'select', options: SPACINGS, default: 'even' },
+      { id: 'frames', label: 'Frames', type: 'range', min: 4, max: 72, default: 24 },
+      { id: 'spread', label: 'Gradients across the panel (0 = all together)', type: 'range', min: 0, max: 4, step: 0.25, default: 1 },
+      { id: 'ms', label: 'Time per frame', type: 'range', min: 0, max: 255, unit: 'ms', default: 60 },
+      { id: 'scope', label: 'Applies to', type: 'select', options: SCOPE_OPTIONS, default: 'all' },
+    ],
+    run(ctx, p) {
+      const base = ctx.frames[ctx.index].pins;
+      const stops = p.colors?.length >= 2 ? p.colors : defaultStops(ctx.color, base, ctx.controls);
+      const controls = scopeOf(ctx, p.scope);
+      const pos = positions(controls, p.direction, p.spacing);
+      const frames = [];
+      for (let i = 0; i < p.frames; i++) {
+        const pins = base.slice();
+        // The colours form a loop (last back to first), so the animation repeats seamlessly.
+        for (const c of controls) setControlColor(pins, c.pins, loopColorAt(stops, pos.get(c.id) * p.spread - i / p.frames, p.blend));
         frames.push(frame(pins, p.ms));
       }
       return { mode: 'replace', frames };

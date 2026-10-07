@@ -60,6 +60,7 @@ export class Store {
     this.color = local.color || { r: 0, g: 0, b: 255 };
     this.keepBrightness = local.keepBrightness ?? true;
     this.recent = local.recent || [];
+    this.schemeSort = local.schemeSort || 'recent';
     this.applyAll = false;
     this.playing = false;
     this.saveState = 'saved';
@@ -148,6 +149,52 @@ export class Store {
   async refreshProjects() {
     this.projects = await api.projects();
     this.emit('projects');
+  }
+
+  // --- scheme list order -------------------------------------------------------
+
+  setSchemeSort(mode) {
+    this.schemeSort = mode;
+    saveLocal({ schemeSort: mode });
+    this.emit('projects');
+  }
+
+  /** Schemes in the order the sidebar shows them. */
+  sortedProjects() {
+    const list = this.projects.slice();
+    const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+    const recent = (a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt));
+    switch (this.schemeSort) {
+      case 'name':
+        return list.sort((a, b) => byName(a, b) || recent(a, b));
+      case 'file':
+        return list.sort((a, b) => a.fileName.localeCompare(b.fileName, undefined, { numeric: true }) || byName(a, b));
+      case 'published':
+        return list.sort((a, b) => String(b.publishedAt || '').localeCompare(String(a.publishedAt || '')) || byName(a, b));
+      case 'custom': {
+        // Schemes made since the order was last arranged go on top.
+        const order = new Map((this.settings?.schemeOrder || []).map((id, i) => [id, i]));
+        return list.sort((a, b) => (order.get(a.id) ?? -1) - (order.get(b.id) ?? -1) || recent(a, b));
+      }
+      default:
+        return list.sort(recent);
+    }
+  }
+
+  /** Move a scheme to `toIndex` in the sidebar. Switches to the custom order; returns true if it wasn't already. */
+  async moveScheme(id, toIndex) {
+    const ids = this.sortedProjects().map((p) => p.id);
+    const from = ids.indexOf(id);
+    if (from < 0) return false;
+    ids.splice(from, 1);
+    ids.splice(Math.max(0, Math.min(ids.length, toIndex)), 0, id);
+    const switched = this.schemeSort !== 'custom';
+    this.settings = { ...this.settings, schemeOrder: ids };
+    this.schemeSort = 'custom';
+    saveLocal({ schemeSort: 'custom' });
+    this.emit('projects');
+    await this.saveSettings({ schemeOrder: ids });
+    return switched;
   }
 
   async openProject(id) {

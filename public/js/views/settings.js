@@ -1,16 +1,19 @@
 import { h, icon } from '../dom.js';
 import { store } from '../store.js';
 import { toast, errorToast } from '../ui/dialogs.js';
+import { BackupsCard } from '../ui/backups-card.js';
 
 export class SettingsView {
   constructor() {
     this.el = h('div.page.settings-view');
   }
 
-  mount(container) {
+  mount(container, section) {
     container.replaceChildren(this.el);
     document.title = 'Settings · RGB Commander Studio';
+    this.backups = new BackupsCard();
     this.render();
+    if (section === 'backups') this.backups.el.scrollIntoView({ block: 'start' });
   }
 
   unmount() {
@@ -130,6 +133,7 @@ export class SettingsView {
         number('defaultFrameMs', 'Default frame duration', 'Used for blank frames you add. RGBcommander allows 0–255 ms per frame; longer holds are split automatically.', 0, 255, 'ms'),
         toggle('showPorts', 'Show LED port numbers', 'Little badges on each button with the port it’s wired to.'),
       ),
+      this.backups.el,
       h(
         'section.card',
         h('h2', 'About'),
@@ -144,7 +148,7 @@ export class SettingsView {
         ),
         h(
           'p.hint',
-          'Backups of any file this app replaces or deletes are kept in the data folder under backups/. RGBcommander only reads new animations when it restarts; the README has a small helper that restarts it whenever Syncthing delivers files.',
+          'RGBcommander only reads new animations when it restarts; the README has a small helper that restarts it whenever Syncthing delivers files.',
         ),
       ),
     );

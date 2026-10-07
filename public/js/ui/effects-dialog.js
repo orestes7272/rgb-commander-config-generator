@@ -4,7 +4,9 @@ import { openDialog } from './dialogs.js';
 import { PanelView } from './panel.js';
 import { Player, buildSchedule, scheduleLength } from '../player.js';
 import { EFFECTS, defaultParams, runEffect } from '../core/effects.js';
+import { defaultStops } from '../core/gradient.js';
 import { newFrame } from '../core/project.js';
+import { ColorStops } from './color-stops.js';
 
 const remembered = {};
 let lastEffect = 'breathe';
@@ -12,7 +14,13 @@ let lastEffect = 'breathe';
 export function openEffectsDialog() {
   if (!store.project) return;
   let effectId = lastEffect;
-  let params = { ...defaultParams(EFFECTS.find((e) => e.id === effectId)), ...remembered[effectId] };
+  // Colour lists start from the scheme: the brush colour plus another colour in this frame.
+  const paramsFor = (effect) => {
+    const p = { ...defaultParams(effect), ...remembered[effect.id] };
+    for (const def of effect.params) if (def.type === 'colors' && !p[def.id]) p[def.id] = defaultStops(store.color, store.frame.pins, store.controls);
+    return p;
+  };
+  let params = paramsFor(EFFECTS.find((e) => e.id === effectId));
   let result = null;
   let applyBtn;
 
@@ -68,7 +76,7 @@ export function openEffectsDialog() {
             onclick: () => {
               effectId = e.id;
               lastEffect = e.id;
-              params = { ...defaultParams(e), ...remembered[e.id] };
+              params = paramsFor(e);
               renderList();
               renderForm();
               regenerate();
@@ -101,6 +109,17 @@ export function openEffectsDialog() {
       } else if (p.type === 'toggle') {
         input = h('input', { id, type: 'checkbox', checked: Boolean(params[p.id]), onchange: () => ((params[p.id] = input.checked), regenerate()) });
         form.append(h('label.check.fx-field', input, h('span', p.label)));
+      } else if (p.type === 'colors') {
+        const stops = new ColorStops({
+          colors: params[p.id],
+          min: p.min,
+          max: p.max,
+          onChange: (colors) => {
+            params[p.id] = colors;
+            regenerate();
+          },
+        });
+        form.append(h('div.fx-field.fx-colors', h('span', p.label), stops.el));
       } else if (p.type === 'seed') {
         form.append(
           h(

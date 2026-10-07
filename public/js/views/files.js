@@ -2,10 +2,8 @@ import { h, icon, iconButton, clear, timeAgo, formatMs } from '../dom.js';
 import { store } from '../store.js';
 import { api } from '../api.js';
 import { thumb } from '../ui/thumb.js';
-import { openDialog, confirmDialog, toast, errorToast } from '../ui/dialogs.js';
-import { PanelView } from '../ui/panel.js';
-import { Player, buildSchedule, scheduleLength } from '../player.js';
-import { parseRgba, expandToPins } from '../core/rgba.js';
+import { confirmDialog, toast, errorToast } from '../ui/dialogs.js';
+import { openPreviewDialog } from '../ui/preview-dialog.js';
 
 export class FilesView {
   constructor() {
@@ -27,7 +25,12 @@ export class FilesView {
           h('h1', 'Files'),
           h('p', 'Everything in the output folder. This is the folder Syncthing sends to your cabinet, so it should mirror RGBcommander’s rgba folder.'),
         ),
-        h('div.page-actions', this.search, iconButton('refresh', { label: 'Refresh', onclick: () => this.load() })),
+        h(
+          'div.page-actions',
+          this.search,
+          h('a.btn', { href: '#/settings/backups', title: 'Copies of files that were replaced or deleted' }, icon('history'), h('span', 'Backups')),
+          iconButton('refresh', { label: 'Refresh', onclick: () => this.load() }),
+        ),
       ),
       this.notice,
       this.grid,
@@ -146,35 +149,10 @@ export class FilesView {
   }
 
   async preview(f) {
-    let frames;
     try {
-      frames = parseRgba(await api.fileText(f.name)).frames;
+      openPreviewDialog({ title: `${f.name}.rgba`, text: await api.fileText(f.name) });
     } catch (err) {
-      return errorToast(err, 'Preview failed');
+      errorToast(err, 'Preview failed');
     }
-    const pinCount = store.board.pinCount;
-    const schemeFrames = frames.map((fr) => ({ ms: fr.delay, pins: expandToPins(fr.values, pinCount) }));
-    const view = new PanelView({ mode: 'static', className: 'file-preview' });
-    view.setLayout(store.layout, store.controls);
-    view.setOptions({ previewMode: store.settings.previewMode, showPorts: store.settings.showPorts });
-    const counter = h('span.muted');
-    const player = new Player((i, pins) => {
-      view.setPins(pins);
-      counter.textContent = `Frame ${i + 1} / ${schemeFrames.length}`;
-    });
-    const schedule = buildSchedule(schemeFrames, store.settings);
-    if (schemeFrames.length > 1) player.play(schedule);
-    else view.setPins(schemeFrames[0].pins);
-    openDialog({
-      title: `${f.name}.rgba`,
-      subtitle:
-        schemeFrames.length > 1
-          ? `${schemeFrames.length} frames · loop ≈ ${formatMs(scheduleLength(schedule))}${store.settings.simulateHardware && store.settings.frameWriteMs ? ' with estimated USB time' : ''}`
-          : 'Static scheme · 1 frame',
-      size: 'lg',
-      body: [view.el, h('p.hint', counter, ' Shown on your current panel layout.')],
-      actions: [{ label: 'Close', kind: 'primary' }],
-      onClose: () => player.stop(),
-    });
   }
 }

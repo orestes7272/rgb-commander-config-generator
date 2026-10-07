@@ -7,10 +7,10 @@ Built for the **Ultimarc I-PAC Ultimate I/O** (96 LED pins, 32 RGB LEDs). The Pa
 ![Editor](docs/editor.png)
 
 - **Paint your real panel.** Lay out your controls once (sizes in mm, starter templates included), tell the app which LED port each one uses, then click or drag across buttons to colour them.
-- **Colour picking built for LEDs.** A hue/saturation wheel with a separate brightness slider. With "keep brightness" on, swatches change the hue but keep the brightness you set, so clicking Blue at 25% gives `0,0,64`. Brightness scales each selected button's own colour. Also: RGB sliders, hex, colours used in this frame, recent colours, all 141 named colours from `rgbcmdd.xml`, an eyedropper, copy/paste, and mirroring between P1 and P2.
+- **Colour picking built for LEDs.** A hue/saturation wheel with a separate brightness slider. With "keep brightness" on, swatches change the hue but keep the brightness you set, so clicking Blue at 25% gives `0,0,64`. Brightness scales each selected button's own colour. Also: RGB sliders, hex, colours used in this frame, recent colours, all 141 named colours from `rgbcmdd.xml`, an eyedropper, copy/paste, mirroring between P1 and P2, and a **Gradient** tool that blends 2 or 3 colours across the buttons.
 - **Previews that look like the cabinet.** LED values are light output (PWM), so `0,0,64` is drawn as the medium blue it really is, not near-black.
-- **Animations.** A frame timeline, playback at the speed the cabinet will actually run, and generators for fade, breathe, chase, rainbow, blink and sparkle.
-- **Safe publishing.** Autosave, undo/redo, atomic writes, confirmation before replacing a file the app didn't write, and backups of anything replaced or deleted.
+- **Animations.** A frame timeline, playback at the speed the cabinet will actually run, and generators for fade, breathe, chase, rainbow, your own colour gradients, blink and sparkle.
+- **Safe publishing.** Autosave, undo/redo, atomic writes, confirmation before replacing a file the app didn't write, and backups of anything replaced or deleted, which you can preview, put back or open as a scheme from Settings.
 - **`rgbcmdd.xml` helpers.** Copy-paste snippets for playing a file, for the `<ledboard>` hardware block (BGR pins handled), and for turning a scheme into static `<colour>`/`<rom>` colours.
 
 ## How it fits together
@@ -132,15 +132,17 @@ From then on, about 10 seconds after Syncthing delivers a file, `rgbcommander` r
 
 **Tips**
 
-- Use **Send & Receive** on both sides. The stock animations and files you already have (like `custom_mike_blue.rgba`) then show up in the app's **Files** tab, ready to open and edit. Deleting a file in the app deletes it on the cabinet too; a backup stays in the app data folder.
+- Use **Send & Receive** on both sides. The stock animations and files you already have (like `custom_mike_blue.rgba`) then show up in the app's **Files** tab, ready to open and edit. Deleting a file in the app deletes it on the cabinet too; a backup is kept under **Settings → Backups**.
 - Add `._*` to Syncthing's ignore patterns on both sides. macOS "._" files ending in `.rgba` crash RGBcommander.
 - The app writes through `.syncthing.*.tmp` temp files, which Syncthing never syncs, so a half-written file can't reach the cabinet.
 
 ## 3. Using the app
 
 1. **Panel layout.** Pick the template closest to your panel, drag controls into place, and set each one's LED port. The port map at the bottom shows what's on each port and flags conflicts. Not sure of your wiring? Create a scheme from the **Wiring test: port walk** starter, publish it, set it as `rgbadefault` and watch which button lights at each step. **Wiring test: all red** reveals buttons whose channel order is wrong (they'll show blue or green).
-2. **Editor.** Select buttons (click, drag across them, drag a box, Shift/Ctrl to add, double-click for "same colour", or the All/P1/P2 chips) and pick a colour. Or pick a colour and switch to Paint (**B**). **Alt**+click picks a colour from a button. Press **?** for all shortcuts.
-3. **Animate.** Add frames, set each frame's time, or use **Effects**, which previews live before you apply it. Press Space to preview at cabinet speed.
+2. **Editor.** Select buttons (click, drag across them, drag a box, Shift/Ctrl to add, double-click for "same colour", or the All/P1/P2 chips) and pick a colour. Or pick a colour and switch to Paint (**B**). **Alt**+click picks a colour from a button. **Gradient** (**G**) blends 2 or 3 colours left to right (or any direction) across every button or just the selection. Press **?** for all shortcuts.
+
+   Sort the scheme list with the ↕ button (recent, name, file, last published), or drag a scheme by its grip, or press Alt+↑/↓, to put them in your own order. On a phone or narrow window the list slides in from ☰; close it with ‹, by tapping outside it, or by swiping it left.
+3. **Animate.** Add frames, set each frame's time, or use **Effects**, which previews live before you apply it. The **Gradient** effect flows your own 2–4 colours across the panel, or set its spread to 0 to fade every button through them together. Press Space to preview at cabinet speed.
 
    ![Effects](docs/effects.png)
 4. **Publish** (Ctrl+Enter) writes `<file name>.rgba` to the output folder.
