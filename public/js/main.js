@@ -11,6 +11,8 @@ const nav = document.getElementById('nav');
 let current = null;
 let currentName = null;
 
+const REPO_URL = 'https://github.com/orestes7272/rgb-commander-config-generator';
+
 const VIEWS = {
   editor: () => new EditorView(),
   layout: () => new LayoutView(),
@@ -41,6 +43,7 @@ function renderNav(active) {
         ]
       : []),
     h('button.btn.icon-only.ghost.nav-help', { type: 'button', title: 'Keyboard shortcuts (?)', 'aria-label': 'Keyboard shortcuts', onclick: () => showShortcuts() }, icon('keyboard')),
+    h('a.btn.icon-only.ghost', { href: REPO_URL, target: '_blank', rel: 'noopener noreferrer', title: 'Source code and issues on GitHub', 'aria-label': 'GitHub repository' }, icon('github')),
   );
 }
 

@@ -11,7 +11,7 @@ import { showMenu } from '../ui/menu.js';
 import { openEffectsDialog } from '../ui/effects-dialog.js';
 import { openGradientDialog } from '../ui/gradient-dialog.js';
 import { openSnippetsDialog } from '../ui/snippets-dialog.js';
-import { openNewSchemeDialog, openRenameDialog, importLocalFile } from '../ui/new-scheme-dialog.js';
+import { openNewSchemeDialog, openRenameDialog, openSaveAsDialog, importLocalFile } from '../ui/new-scheme-dialog.js';
 import { getControlColor, setControlColor } from '../core/project.js';
 import { mirrorName, playerOf } from '../core/layouts.js';
 import { scaleColor, sameColor, toTriplet, describeColor, OFF } from '../core/color.js';
@@ -329,6 +329,7 @@ export class EditorView {
     this.titleBtn = h('button.scheme-title', { type: 'button', title: 'Rename', onclick: () => store.project && openRenameDialog() });
     this.saveStateEl = h('span.save-state');
     this.saveBtn = iconButton('check', { label: 'Save', title: 'Save this scheme', kbd: 'Ctrl+S', cls: 'small', onclick: () => this.save() });
+    this.saveAsBtn = iconButton('copy', { label: 'Save as', title: 'Save as a new scheme with its own file name', kbd: 'Ctrl+Shift+S', cls: 'small', onclick: () => this.saveAs() });
     this.statusEl = h('span.publish-status');
     this.publishBtn = h('button.btn.primary.publish-btn', { type: 'button', title: 'Write the .rgba file to the output folder (Ctrl+Enter)', onclick: () => this.publish() }, icon('send'), h('span', 'Publish'));
     this.moreBtn = iconButton('more', { title: 'More actions', onclick: () => this.moreMenu() });
@@ -343,6 +344,7 @@ export class EditorView {
       h('div.head-spacer'),
       this.saveStateEl,
       this.saveBtn,
+      this.saveAsBtn,
       this.statusEl,
       iconButton('code', { label: 'rgbcmdd.xml', title: 'Snippets for RGBcommander’s config file', cls: 'ghost', onclick: () => openSnippetsDialog() }),
       this.moreBtn,
@@ -490,12 +492,19 @@ export class EditorView {
     // With autosave on the button would only ever be greyed out, so it only shows when it's off.
     this.saveBtn.hidden = !store.project || store.autosave;
     this.saveBtn.disabled = !store.unsaved || store.saveState === 'saving';
+    this.saveAsBtn.hidden = !store.project;
   }
 
   async save() {
     if (!store.project) return;
     await store.flushSave();
     if (store.saveState === 'saved') toast('Saved', { kind: 'success', timeout: 1200 });
+  }
+
+  saveAs() {
+    if (!store.project) return;
+    this.stop();
+    openSaveAsDialog();
   }
 
   /**
@@ -628,6 +637,7 @@ export class EditorView {
     const p = store.project;
     showMenu(this.moreBtn, [
       { label: 'Rename…', icon: 'edit', onClick: () => openRenameDialog() },
+      { label: 'Save as…', icon: 'copy', hint: 'Ctrl+Shift+S', onClick: () => this.saveAs() },
       { label: 'Duplicate scheme', icon: 'copy', onClick: () => this.duplicate() },
       { label: 'Download .rgba', icon: 'download', onClick: () => this.download() },
       { label: 'Keyboard shortcuts', icon: 'keyboard', hint: '?', onClick: () => showShortcuts() },
@@ -753,7 +763,7 @@ export class EditorView {
     }
     if (mod && key === 's') {
       e.preventDefault();
-      return this.save();
+      return e.shiftKey ? this.saveAs() : this.save();
     }
     if (mod && key === 'enter') {
       e.preventDefault();
@@ -886,6 +896,7 @@ export function showShortcuts() {
     ['Space', 'Play / stop'],
     ['Ctrl + Z / Ctrl + Shift + Z', 'Undo / redo'],
     ['Ctrl + S', 'Save now (it autosaves anyway)'],
+    ['Ctrl + Shift + S', 'Save as a new scheme'],
     ['Ctrl + Enter', 'Publish'],
   ];
   openDialog({

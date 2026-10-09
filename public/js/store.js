@@ -468,6 +468,23 @@ export class Store {
     this.emit('save', 'status');
   }
 
+  /**
+   * Save the open scheme, as it is now, as a new scheme. Edits that haven't
+   * been saved go to the copy only: the original stays as it was last saved.
+   * Returns the server's reply; the caller opens the new scheme.
+   */
+  async saveAs({ name, fileName }) {
+    this.scheduleSave.cancel();
+    while (this.saving) await new Promise((r) => setTimeout(r, 50));
+    const p = this.project;
+    const res = await api.createProject({ name, fileName, board: p.board, frames: p.frames });
+    // Drop the original's unsaved edits so switching away neither saves nor asks about them.
+    if (this.project === p) this.savedVersion = this.editVersion;
+    this.projects.unshift({ ...res.project, status: res.status, thumb: res.project.frames[0].pins, frameCount: res.project.frames.length });
+    this.emit('projects', 'save');
+    return res;
+  }
+
   updateSummary(project, status) {
     const summary = this.projects.find((p) => p.id === project.id);
     const next = {

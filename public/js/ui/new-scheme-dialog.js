@@ -139,6 +139,42 @@ export async function importLocalFile(file) {
   }
 }
 
+export function openSaveAsDialog() {
+  const project = store.project;
+  const taken = new Set(store.projects.map((p) => p.fileName));
+  let fileName = `${project.fileName}_copy`.slice(0, 80);
+  for (let i = 2; taken.has(fileName); i++) fileName = `${project.fileName}_copy${i}`.slice(0, 80);
+  const fields = nameFields({ name: `${project.name} (copy)`, fileName });
+  const note = store.unsaved
+    ? `Your unsaved changes go into the new scheme. “${project.name}” stays as it was last saved.`
+    : store.autosave
+      ? `“${project.name}” has already autosaved your changes. To keep an original untouched, turn off autosave in Settings before editing.`
+      : `“${project.name}” stays as it is.`;
+  return openDialog({
+    title: 'Save as a new scheme',
+    size: 'sm',
+    body: [fields.el, h('p.hint', note)],
+    actions: [
+      { label: 'Cancel', kind: 'ghost' },
+      {
+        label: 'Save',
+        kind: 'primary',
+        onClick: async () => {
+          if (!fields.check()) return false;
+          try {
+            const res = await store.saveAs({ name: fields.nameInput.value.trim() || `${project.name} (copy)`, fileName: fields.fileInput.value });
+            location.hash = `#/editor/${res.project.id}`;
+            toast(`Saved as “${res.project.name}”`, { kind: 'success' });
+          } catch (err) {
+            errorToast(err, 'Save as failed');
+            return false;
+          }
+        },
+      },
+    ],
+  });
+}
+
 export function openRenameDialog() {
   const project = store.project;
   const fields = nameFields({ name: project.name, fileName: project.fileName });
