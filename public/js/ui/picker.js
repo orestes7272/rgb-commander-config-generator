@@ -56,13 +56,16 @@ export class ColorPicker {
     // The wheel moves hue and saturation together; this nudges just the hue.
     this.hue = h('input.slider.hue-slider', { type: 'range', min: 0, max: 359, step: 1, 'aria-label': 'Hue' });
     this.hueVal = h('span.field-val');
+    // With several buttons selected, each one's own hue turns by the same amount.
     this.bindSlider(this.hue, () => {
+      this.hueStart ??= this.hsv.h;
       this.hsv.h = Number(this.hue.value);
       // White and greys have no hue to turn, so give them full colour.
       if (this.hsv.s < 0.05) this.hsv.s = 1;
       if (!this.hsv.v) this.hsv.v = this.lastV;
-      this.commitColor(hsvToRgb(this.hsv), 'set');
+      this.commitColor(hsvToRgb(this.hsv), 'hue', { shift: this.hsv.h - this.hueStart });
     });
+    this.hue.addEventListener('change', () => (this.hueStart = null));
 
     this.brightness = h('input.slider.brightness-slider', {
       type: 'range',
@@ -210,9 +213,9 @@ export class ColorPicker {
     store.rememberColor(next);
   }
 
-  commitColor(rgb, mode) {
+  commitColor(rgb, mode, opts) {
     this.internal = true;
-    store.applyColor(rgb, { mode });
+    store.applyColor(rgb, { mode, ...opts });
     this.internal = false;
     this.refresh();
   }

@@ -50,6 +50,14 @@ test('health, info and defaults', async () => {
   assert.ok(layout.controls.length > 10);
   const settings = (await api('GET', '/api/settings')).body;
   assert.equal(settings.eol, 'crlf');
+  assert.equal(settings.autosave, true);
+});
+
+test('autosave can be turned off and back on', async () => {
+  assert.equal((await api('PUT', '/api/settings', { autosave: false })).body.autosave, false);
+  assert.equal((await api('GET', '/api/settings')).body.autosave, false);
+  assert.equal((await api('PUT', '/api/settings', { autosave: 'no' })).body.autosave, false);
+  assert.equal((await api('PUT', '/api/settings', { autosave: true })).body.autosave, true);
 });
 
 test('serves the app shell but not files outside public/', async () => {

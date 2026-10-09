@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { debounce } from './dom.js';
 import { getBoard } from './core/boards.js';
 import { resolveControls, getControlColor, setControlColor } from './core/project.js';
-import { withBrightness, sameColor, isOff } from './core/color.js';
+import { withBrightness, sameColor, isOff, rgbToHsv, hsvToRgb } from './core/color.js';
 
 const LOCAL_KEY = 'rgbcs:v1';
 
@@ -199,7 +199,8 @@ export class Store {
 
   async openProject(id) {
     if (this.project?.id === id) return;
-    await this.flushSave();
+    // With autosave off the caller has already asked whether to save or discard.
+    await this.autoFlush();
     const { project, status } = await api.project(id);
     this.project = project;
     this.status = status;
@@ -261,7 +262,7 @@ export class Store {
     this.editVersion++;
     this.saveState = 'dirty';
     this.emit('save');
-    this.scheduleSave();
+    if (this.autosave) this.scheduleSave();
   }
 
   undo() {
@@ -331,16 +332,18 @@ export class Store {
 
   /**
    * Colour picked in the UI. With a selection it is applied straight away;
-   * mode 'brightness' keeps each button's own hue.
+   * mode 'brightness' keeps each button's own hue; mode 'hue' turns each
+   * button's own hue by `shift` degrees.
    */
-  applyColor(rgb, { mode = 'set' } = {}) {
+  applyColor(rgb, { mode = 'set', shift = 0 } = {}) {
     this.setBrush(rgb);
     if (!this.selection.size || !this.project) return;
     const ids = [...this.selection];
     const v = Math.max(rgb.r, rgb.g, rgb.b);
     this.changeFrames(() => {
-      // Brightness drags scale from the colours at the start of the drag, so
-      // going down to 0 and back up doesn't lose each button's own hue.
+      // Brightness and hue drags work from the colours at the start of the
+      // drag, so going down to 0 and back up doesn't lose each button's own
+      // hue, and turning the hue doesn't pile up rounding errors.
       const base = this.gesture?.base;
       for (const frame of this.targetFrames()) {
         const source = base?.[this.project.frames.indexOf(frame)]?.pins || frame.pins;
@@ -351,6 +354,10 @@ export class Store {
           if (mode === 'brightness') {
             const own = getControlColor(source, c.pins);
             next = withBrightness(isOff(own) ? rgb : own, v);
+          } else if (mode === 'hue') {
+            // Off, white and greys have no hue to turn, so they take the brush.
+            const hsv = rgbToHsv(getControlColor(source, c.pins));
+            if (hsv.v && hsv.s >= 0.05) next = hsvToRgb({ ...hsv, h: hsv.h + shift });
           }
           setControlColor(frame.pins, c.pins, next);
         }
@@ -424,11 +431,26 @@ export class Store {
       this.emit('save', err.code === 'conflict' ? 'conflict' : 'error');
     } finally {
       this.saving = false;
-      if (this.saveAgain || (this.saveState === 'dirty' && this.project === project)) {
+      if (this.saveAgain || (this.autosave && this.saveState === 'dirty' && this.project === project)) {
         this.saveAgain = false;
         this.scheduleSave();
       }
     }
+  }
+
+  /** Saves the scheme on its own unless turned off in Settings; Save (Ctrl+S) always works. */
+  get autosave() {
+    return this.settings?.autosave !== false;
+  }
+
+  /** The open scheme has edits the server doesn't have yet. */
+  get unsaved() {
+    return Boolean(this.project) && this.editVersion !== this.savedVersion;
+  }
+
+  /** Save now if autosave is on (leaving the page, switching views); otherwise leave the edits alone. */
+  async autoFlush() {
+    if (this.autosave) await this.flushSave();
   }
 
   async flushSave() {
@@ -478,7 +500,9 @@ export class Store {
 
   async saveSettings(patch) {
     this.settings = await api.saveSettings({ ...this.settings, ...patch });
-    this.emit('settings');
+    this.emit('settings', 'save');
+    // Turning autosave back on catches up with edits made while it was off.
+    if (patch.autosave && this.unsaved) this.scheduleSave();
   }
 }
 

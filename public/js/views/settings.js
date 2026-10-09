@@ -111,6 +111,15 @@ export class SettingsView {
       ),
       h(
         'section.card',
+        h('h2', 'Saving'),
+        toggle(
+          'autosave',
+          'Save schemes automatically',
+          'Changes are saved a moment after you make them. Turn off to save only with the Save button or Ctrl+S; you’re asked before switching away from unsaved changes, and publishing still saves first. The panel layout always saves automatically.',
+        ),
+      ),
+      h(
+        'section.card',
         h('h2', 'Preview'),
         h(
           'label.setting.check',

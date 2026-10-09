@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS = {
   showPorts: false,
   outputDir: '',
   schemeOrder: [],
+  autosave: true,
 };
 
 function sanitizeSettings(input, current) {
@@ -46,7 +47,7 @@ function sanitizeSettings(input, current) {
   intIn('defaultFrameMs', 0, 255);
   intIn('frameWriteMs', 0, 2000);
   if (input.previewMode === 'led' || input.previewMode === 'raw') s.previewMode = input.previewMode;
-  for (const key of ['simulateHardware', 'showPorts']) if (typeof input[key] === 'boolean') s[key] = input[key];
+  for (const key of ['simulateHardware', 'showPorts', 'autosave']) if (typeof input[key] === 'boolean') s[key] = input[key];
   if (input.schemeOrder !== undefined) {
     const order = input.schemeOrder;
     if (!Array.isArray(order) || order.length > 5000 || !order.every((id) => typeof id === 'string' && PROJECT_ID.test(id))) {

@@ -561,6 +561,10 @@ select {
   color: var(--text-3);
   white-space: nowrap;
 }
+.save-state.manual.dirty {
+  color: var(--warn);
+  font-weight: 600;
+}
 .save-state.error {
   color: var(--danger);
   font-weight: 600;

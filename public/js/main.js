@@ -53,7 +53,7 @@ async function route() {
     renderNav(viewName);
     return;
   }
-  if (currentName === 'editor' || currentName === 'layout') await store.flushSave().catch(() => {});
+  if (currentName === 'editor' || currentName === 'layout') await store.autoFlush().catch(() => {});
   current?.unmount?.();
   current = VIEWS[viewName]();
   currentName = viewName;
@@ -97,14 +97,14 @@ async function boot() {
 
 window.addEventListener('beforeunload', (e) => {
   if (store.saveState === 'dirty' || store.saveState === 'saving') {
-    store.flushSave();
+    store.autoFlush();
     e.preventDefault();
     e.returnValue = '';
   }
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') store.flushSave().catch(() => {});
+  if (document.visibilityState === 'hidden') store.autoFlush().catch(() => {});
 });
 
 // Mouse clicks shouldn't leave buttons focused: Space/Enter would re-trigger them

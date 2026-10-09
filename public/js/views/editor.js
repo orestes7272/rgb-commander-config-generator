@@ -52,7 +52,7 @@ export class EditorView {
       store.on('selection', () => this.panel.setSelection(store.selection)),
       store.on('layout', () => this.renderLayout()),
       store.on('tool', () => this.renderTools()),
-      store.on('settings', () => this.renderLayout()),
+      store.on('settings', () => (this.renderLayout(), this.renderSaveState())),
       store.on('conflict', () => this.onConflict()),
       store.on('error', () => this.onSaveError()),
       store.on('warnings', () => this.showWarnings()),
@@ -78,7 +78,10 @@ export class EditorView {
     if (projectId && !exists) toast('That scheme no longer exists', { kind: 'warn' });
     this.stop();
     this.toggleSidebar(false);
-    if (exists) {
+    if (exists && store.project && store.project.id !== id && !(await this.resolveUnsaved())) {
+      // Stay on the unsaved scheme.
+      history.replaceState(null, '', `#/editor/${store.project.id}`);
+    } else if (exists) {
       try {
         await store.openProject(id);
         if (!projectId) history.replaceState(null, '', `#/editor/${id}`);
@@ -325,6 +328,7 @@ export class EditorView {
   buildWorkspace() {
     this.titleBtn = h('button.scheme-title', { type: 'button', title: 'Rename', onclick: () => store.project && openRenameDialog() });
     this.saveStateEl = h('span.save-state');
+    this.saveBtn = iconButton('check', { label: 'Save', title: 'Save this scheme', kbd: 'Ctrl+S', cls: 'small', onclick: () => this.save() });
     this.statusEl = h('span.publish-status');
     this.publishBtn = h('button.btn.primary.publish-btn', { type: 'button', title: 'Write the .rgba file to the output folder (Ctrl+Enter)', onclick: () => this.publish() }, icon('send'), h('span', 'Publish'));
     this.moreBtn = iconButton('more', { title: 'More actions', onclick: () => this.moreMenu() });
@@ -338,6 +342,7 @@ export class EditorView {
       h('div.scheme-title-wrap', this.titleBtn),
       h('div.head-spacer'),
       this.saveStateEl,
+      this.saveBtn,
       this.statusEl,
       iconButton('code', { label: 'rgbcmdd.xml', title: 'Snippets for RGBcommander’s config file', cls: 'ghost', onclick: () => openSnippetsDialog() }),
       this.moreBtn,
@@ -479,9 +484,40 @@ export class EditorView {
   }
 
   renderSaveState() {
-    const text = { saved: 'Saved', dirty: 'Saving…', saving: 'Saving…', error: 'Not saved!' }[store.saveState];
+    const text = { saved: 'Saved', dirty: store.autosave ? 'Saving…' : 'Unsaved changes', saving: 'Saving…', error: 'Not saved!' }[store.saveState];
     this.saveStateEl.textContent = store.project ? text : '';
-    this.saveStateEl.className = 'save-state ' + store.saveState;
+    this.saveStateEl.className = 'save-state ' + store.saveState + (store.autosave ? '' : ' manual');
+    // With autosave on the button would only ever be greyed out, so it only shows when it's off.
+    this.saveBtn.hidden = !store.project || store.autosave;
+    this.saveBtn.disabled = !store.unsaved || store.saveState === 'saving';
+  }
+
+  async save() {
+    if (!store.project) return;
+    await store.flushSave();
+    if (store.saveState === 'saved') toast('Saved', { kind: 'success', timeout: 1200 });
+  }
+
+  /**
+   * Before switching away from a scheme with autosave off: save, discard or
+   * stay. Resolves true when it's fine to move on.
+   */
+  async resolveUnsaved() {
+    if (store.autosave || !store.unsaved) return true;
+    const choice = await openDialog({
+      title: 'Save your changes?',
+      size: 'sm',
+      body: h('p', `“${store.project.name}” has changes that haven’t been saved.`),
+      actions: [
+        { label: 'Cancel', value: 'cancel', kind: 'ghost' },
+        { label: 'Discard', value: 'discard', kind: 'danger' },
+        { label: 'Save', value: 'save', kind: 'primary' },
+      ],
+    }).result;
+    if (choice === 'discard') return true;
+    if (choice !== 'save') return false;
+    await store.flushSave();
+    return store.saveState === 'saved';
   }
 
   renderEmpty() {
@@ -717,7 +753,7 @@ export class EditorView {
     }
     if (mod && key === 's') {
       e.preventDefault();
-      return store.flushSave().then(() => toast('Saved', { kind: 'success', timeout: 1200 }));
+      return this.save();
     }
     if (mod && key === 'enter') {
       e.preventDefault();
