@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { debounce } from './dom.js';
 import { getBoard } from './core/boards.js';
 import { resolveControls, getControlColor, setControlColor } from './core/project.js';
-import { withBrightness, sameColor, isOff, rgbToHsv, hsvToRgb } from './core/color.js';
+import { withBrightness, withSaturation, sameColor, isOff, rgbToHsv, hsvToRgb } from './core/color.js';
 
 const LOCAL_KEY = 'rgbcs:v1';
 
@@ -333,17 +333,22 @@ export class Store {
   /**
    * Colour picked in the UI. With a selection it is applied straight away;
    * mode 'brightness' keeps each button's own hue; mode 'hue' turns each
-   * button's own hue by `shift` degrees.
+   * button's own hue by `shift` degrees; mode 'saturation' sets each
+   * button's saturation to `saturation` (0-1), keeping its own hue and
+   * brightness (greys take `hue`).
    */
-  applyColor(rgb, { mode = 'set', shift = 0 } = {}) {
+  applyColor(rgb, { mode = 'set', shift = 0, hue, saturation } = {}) {
     this.setBrush(rgb);
     if (!this.selection.size || !this.project) return;
     const ids = [...this.selection];
     const v = Math.max(rgb.r, rgb.g, rgb.b);
+    const brush = rgbToHsv(rgb);
+    hue ??= brush.h;
+    saturation ??= brush.s;
     this.changeFrames(() => {
-      // Brightness and hue drags work from the colours at the start of the
-      // drag, so going down to 0 and back up doesn't lose each button's own
-      // hue, and turning the hue doesn't pile up rounding errors.
+      // Brightness, hue and saturation drags work from the colours at the
+      // start of the drag, so going down to 0 and back up doesn't lose each
+      // button's own hue, and turning the hue doesn't pile up rounding errors.
       const base = this.gesture?.base;
       for (const frame of this.targetFrames()) {
         const source = base?.[this.project.frames.indexOf(frame)]?.pins || frame.pins;
@@ -358,6 +363,10 @@ export class Store {
             // Off, white and greys have no hue to turn, so they take the brush.
             const hsv = rgbToHsv(getControlColor(source, c.pins));
             if (hsv.v && hsv.s >= 0.05) next = hsvToRgb({ ...hsv, h: hsv.h + shift });
+          } else if (mode === 'saturation') {
+            // Off takes the brush; greys take the brush's hue.
+            const own = getControlColor(source, c.pins);
+            if (!isOff(own)) next = withSaturation(own, saturation, hue);
           }
           setControlColor(frame.pins, c.pins, next);
         }

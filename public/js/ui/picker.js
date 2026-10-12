@@ -13,6 +13,7 @@ import {
   toTriplet,
   isOff,
   hueTrack,
+  saturationTrack,
 } from '../core/color.js';
 import { RGBCOMMANDER_COLOURS, REQUIRED_COLOUR_COUNT } from '../core/rgbcommander-colours.js';
 import { frameColors } from '../core/project.js';
@@ -67,6 +68,16 @@ export class ColorPicker {
     });
     this.hue.addEventListener('change', () => (this.hueStart = null));
 
+    // Saturation alone, from white (0%) to full colour (100%). With several
+    // buttons selected, each keeps its own hue and brightness.
+    this.saturation = h('input.slider.saturation-slider', { type: 'range', min: 0, max: 100, step: 1, 'aria-label': 'Saturation' });
+    this.saturationVal = h('span.field-val');
+    this.bindSlider(this.saturation, () => {
+      this.hsv.s = Number(this.saturation.value) / 100;
+      if (!this.hsv.v) this.hsv.v = this.lastV;
+      this.commitColor(hsvToRgb(this.hsv), 'saturation', { hue: this.hsv.h, saturation: this.hsv.s });
+    });
+
     this.brightness = h('input.slider.brightness-slider', {
       type: 'range',
       min: 0,
@@ -117,6 +128,7 @@ export class ColorPicker {
       this.targetEl,
       h('div.wheel-row', wheel),
       h('div.field', h('div.field-head', h('label', 'Hue'), this.hueVal), this.hue),
+      h('div.field', h('div.field-head', h('label', 'Saturation'), this.saturationVal), this.saturation),
       h('div.field', h('div.field-head', h('label', 'Brightness'), this.brightnessVal), this.brightness),
       h('div.field.lock-row', this.lockBtn),
       h('div.channels', rows),
@@ -256,6 +268,10 @@ export class ColorPicker {
     this.hue.value = String(hue);
     this.hueVal.textContent = `${hue}°`;
     this.hue.style.setProperty('--track', hueTrack(mode, this.hsv.s));
+    const sat = Math.round(this.hsv.s * 100);
+    this.saturation.value = String(sat);
+    this.saturationVal.textContent = `${sat}%`;
+    this.saturation.style.setProperty('--track', saturationTrack(mode, this.hsv.h));
     const pct = Math.round((this.hsv.v / 255) * 100);
     this.brightness.value = String(this.hsv.v);
     this.brightnessVal.textContent = `${pct}% · ${this.hsv.v}/255`;

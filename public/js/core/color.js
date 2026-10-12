@@ -54,6 +54,15 @@ export function withBrightness(rgb, v) {
   return { r: clampByte(rgb.r * k), g: clampByte(rgb.g * k), b: clampByte(rgb.b * k) };
 }
 
+/**
+ * Keep a colour's hue and brightness but give it a new saturation (0-1).
+ * Greys have no hue of their own, so they take `hue`.
+ */
+export function withSaturation(rgb, s, hue = 0) {
+  const hsv = rgbToHsv(rgb);
+  return hsvToRgb({ h: hsv.s >= 0.05 ? hsv.h : hue, s: Math.max(0, Math.min(1, s)), v: hsv.v });
+}
+
 export function scaleColor(rgb, factor) {
   return { r: clampByte(rgb.r * factor), g: clampByte(rgb.g * factor), b: clampByte(rgb.b * factor) };
 }
@@ -106,6 +115,13 @@ export function hueTrack(mode = 'led', s = 1) {
   const stops = [];
   for (let hue = 0; hue <= 360; hue += 30) stops.push(`${cssRgb(ledToScreen(hsvToRgb({ h: hue, s: sat, v: 255 }), mode))} ${((hue / 360) * 100).toFixed(1)}%`);
   return `linear-gradient(90deg, ${stops.join(', ')})`;
+}
+
+/** CSS gradient from white to full colour at a given hue, for saturation slider tracks. */
+export function saturationTrack(mode = 'led', h = 0) {
+  const from = cssRgb(ledToScreen(hsvToRgb({ h, s: 0, v: 255 }), mode));
+  const to = cssRgb(ledToScreen(hsvToRgb({ h, s: 1, v: 255 }), mode));
+  return `linear-gradient(90deg, ${from}, ${to})`;
 }
 
 /** Relative luminance of a screen colour (for picking readable text). */
