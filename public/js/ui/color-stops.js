@@ -1,6 +1,6 @@
 import { h, icon, iconButton, clear } from '../dom.js';
 import { store } from '../store.js';
-import { LED_PALETTE, ledToScreen, cssRgb, describeColor, toTriplet, toHex, parseHex, rgbToHsv, hsvToRgb, withBrightness, isOff, hueTrack } from '../core/color.js';
+import { LED_PALETTE, ledToScreen, cssRgb, describeColor, toTriplet, toHex, parseHex, rgbToHsv, hsvToRgb, withBrightness, isOff, hueTrack, saturationTrack } from '../core/color.js';
 import { blend } from '../core/gradient.js';
 
 /**
@@ -38,6 +38,7 @@ export class ColorStops {
 
   render() {
     this.hueBase = null;
+    this.satBase = null;
     clear(this.el);
     const n = this.colors.length;
     this.stopButtons = this.colors.map((c, i) =>
@@ -73,6 +74,19 @@ export class ColorStops {
     });
     this.hue.addEventListener('change', () => (this.hueBase = null));
     this.hueVal = h('span.field-val');
+
+    this.saturation = h('input.slider.saturation-slider', { type: 'range', min: 0, max: 100, step: 1, 'aria-label': 'Saturation of the selected colour' });
+    this.saturation.addEventListener('input', () => {
+      // Hold hue and brightness from the start of the drag, so going down to grey and back keeps the hue.
+      // Greys have no hue of their own, so they take the hue slider's.
+      if (!this.satBase) {
+        const { h: hue, s, v } = rgbToHsv(this.colors[this.active]);
+        this.satBase = { h: s < 0.05 ? Number(this.hue.value) : hue, v: v || 255 };
+      }
+      this.setActiveColor(hsvToRgb({ ...this.satBase, s: Number(this.saturation.value) / 100 }));
+    });
+    this.saturation.addEventListener('change', () => (this.satBase = null));
+    this.saturationVal = h('span.field-val');
 
     this.brightness = h('input.slider', { type: 'range', min: 0, max: 255, step: 1, 'aria-label': 'Brightness of the selected colour' });
     this.brightness.addEventListener('input', () => this.setActiveColor(withBrightness(this.colors[this.active], Number(this.brightness.value))));
@@ -119,6 +133,7 @@ export class ColorStops {
         palette,
         extras,
         h('div.field', h('div.field-head', h('label', 'Hue'), this.hueVal), this.hue),
+        h('div.field', h('div.field-head', h('label', 'Saturation'), this.saturationVal), this.saturation),
         h('div.field', h('div.field-head', h('label', 'Brightness'), this.brightnessVal), this.brightness),
         h('div.hex-row', h('label', 'Hex'), this.hex, h('span.hint', 'raw LED values')),
       ),
@@ -143,6 +158,11 @@ export class ColorStops {
     if (document.activeElement !== this.hue) this.hue.value = String(hue);
     this.hueVal.textContent = `${document.activeElement === this.hue ? this.hue.value : hue}°`;
     this.hue.style.setProperty('--track', hueTrack(this.previewMode, this.hueBase?.s ?? hsv.s));
+    const trackHue = this.satBase?.h ?? (hsv.s >= 0.05 ? hsv.h : Number(this.hue.value));
+    const sat = Math.round(hsv.s * 100);
+    if (document.activeElement !== this.saturation) this.saturation.value = String(sat);
+    this.saturationVal.textContent = `${document.activeElement === this.saturation ? this.saturation.value : sat}%`;
+    this.saturation.style.setProperty('--track', saturationTrack(this.previewMode, trackHue));
     const v = Math.max(c.r, c.g, c.b);
     if (document.activeElement !== this.brightness) this.brightness.value = String(v);
     this.brightnessVal.textContent = `${Math.round((v / 255) * 100)}% · ${v}/255`;
