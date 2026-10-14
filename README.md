@@ -1,4 +1,4 @@
-# RGB Commander Studio
+# RGBcommander Studio
 
 Design button lighting for your arcade cabinet in a browser, see it glow the way the LEDs will, and publish [RGBcommander](https://web.archive.org/web/2022/http://users.telenet.be/rgbcommander/) `.rgba` files to a share that Syncthing carries to the cabinet.
 
@@ -16,7 +16,7 @@ Built for the **Ultimarc I-PAC Ultimate I/O** (96 LED pins, 32 RGB LEDs). The Pa
 ## How it fits together
 
 ```
-browser ──> RGB Commander Studio (Unraid container)
+browser ──> RGBcommander Studio (Unraid container)
                  │ writes custom_mike_blue.rgba
                  ▼
             /mnt/user/syncthing/rgbcommander/rgba   (Unraid share)
@@ -35,7 +35,7 @@ Unraid doesn't ship Docker Compose, so first install **Compose Manager Plus** fr
 1. **Add the stack.** In **Docker → Compose**, click **Add Stack** and name it `rgb-commander-studio`. When the editor opens, paste in this repository's [`docker-compose.yml`](docker-compose.yml):
 
    ```yaml
-   # RGB Commander Studio on Unraid (Compose Manager Plus) or any Docker host.
+   # RGBcommander Studio on Unraid (Compose Manager Plus) or any Docker host.
    # Change the host side (left of each colon) of the port and folders to suit.
    services:
      rgb-commander-studio:
@@ -93,12 +93,12 @@ Prefer Unraid's classic **Add Container** form? [`unraid/rgb-commander-studio.xm
 
 Rather design lighting on your PC? The AppImage is the same app as a single file with Node.js built in. It runs on any recent 64-bit Linux desktop with nothing to install: x86_64, or aarch64 such as Raspberry Pi OS 64-bit.
 
-1. Download `RGB_Commander_Studio-<version>-x86_64.AppImage` from the repository's **Releases** page. Releases are built when you push a version tag (`git tag v1.0.0 && git push --tags`). You can also build it yourself with `scripts/build-appimage.sh`.
+1. Download `RGBcommander_Studio-<version>-x86_64.AppImage` from the repository's **Releases** page. Releases are built when you push a version tag (`git tag v1.0.0 && git push --tags`). You can also build it yourself with `scripts/build-appimage.sh`.
 2. Make it executable and start it:
 
    ```sh
-   chmod +x RGB_Commander_Studio-*.AppImage
-   ./RGB_Commander_Studio-*.AppImage
+   chmod +x RGBcommander_Studio-*.AppImage
+   ./RGBcommander_Studio-*.AppImage
    ```
 
    It opens in its own window and quits when you close that window. If Chrome, Chromium, Brave, Edge or Vivaldi is installed it uses an app window; otherwise it opens a tab in your default browser. Run it once with `--install` to add it to your applications menu.
@@ -189,7 +189,7 @@ No dependencies and no build step: Node 22.2 or newer and a browser.
 npm test          # node:test suites for the file format, wiring, effects, API and desktop launcher
 npm run dev       # http://localhost:8080, data in .dev/
 npm run desktop   # the desktop launcher: opens the app in its own window
-npm run appimage  # build dist/RGB_Commander_Studio-<version>-<arch>.AppImage (ARCH=aarch64 for ARM)
+npm run appimage  # build dist/RGBcommander_Studio-<version>-<arch>.AppImage (ARCH=aarch64 for ARM)
 npm run icon      # regenerate public/icon-256.png
 ```
 

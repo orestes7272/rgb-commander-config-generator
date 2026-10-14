@@ -10,7 +10,7 @@ export class SettingsView {
 
   mount(container, section) {
     container.replaceChildren(this.el);
-    document.title = 'Settings · RGB Commander Studio';
+    document.title = 'Settings · RGBcommander Studio';
     this.backups = new BackupsCard();
     this.render();
     if (section === 'backups') this.backups.el.scrollIntoView({ block: 'start' });

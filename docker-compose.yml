@@ -1,4 +1,4 @@
-# RGB Commander Studio on Unraid (Compose Manager Plus) or any Docker host.
+# RGBcommander Studio on Unraid (Compose Manager Plus) or any Docker host.
 # Change the host side (left of each colon) of the port and folders to suit.
 services:
   rgb-commander-studio:

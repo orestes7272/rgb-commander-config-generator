@@ -116,7 +116,7 @@ export function checkAuth(req, res, config) {
       timingSafeEqual(digest(user), digest(config.authUser)) & timingSafeEqual(digest(rest.join(':')), digest(config.authPassword));
     if (ok) return true;
   }
-  res.writeHead(401, { ...SECURITY_HEADERS, 'WWW-Authenticate': 'Basic realm="RGB Commander Studio", charset="UTF-8"' });
+  res.writeHead(401, { ...SECURITY_HEADERS, 'WWW-Authenticate': 'Basic realm="RGBcommander Studio", charset="UTF-8"' });
   res.end('Authentication required');
   return false;
 }

@@ -1,8 +1,8 @@
-# RGB Commander Studio
+# RGBcommander Studio
 # No npm dependencies, so the image is just Node plus the app.
 FROM node:24-alpine
 
-LABEL org.opencontainers.image.title="RGB Commander Studio" \
+LABEL org.opencontainers.image.title="RGBcommander Studio" \
       org.opencontainers.image.description="Design RGBcommander lighting schemes (.rgba) for Ultimarc LED boards in the browser"
 
 ENV NODE_ENV=production \

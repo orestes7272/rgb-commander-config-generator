@@ -82,7 +82,7 @@ export class LayoutView {
     );
     this.onKey = (e) => this.handleKey(e);
     document.addEventListener('keydown', this.onKey);
-    document.title = 'Panel layout · RGB Commander Studio';
+    document.title = 'Panel layout · RGBcommander Studio';
     this.render();
   }
 

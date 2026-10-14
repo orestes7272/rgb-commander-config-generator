@@ -464,10 +464,10 @@ export class EditorView {
       this.renderEmpty();
       this.titleBtn.replaceChildren(h('span.scheme-name', 'No scheme open'));
       this.statusEl.replaceChildren();
-      document.title = 'RGB Commander Studio';
+      document.title = 'RGBcommander Studio';
       return;
     }
-    document.title = `${p.name} · RGB Commander Studio`;
+    document.title = `${p.name} · RGBcommander Studio`;
     this.titleBtn.replaceChildren(h('span.scheme-name', p.name, icon('edit', { size: 14 })), h('span.scheme-file.mono', `${p.fileName}.rgba`));
     const [tone, label] = STATUS_TEXT[store.status] || STATUS_TEXT.unpublished;
     this.statusEl.replaceChildren(

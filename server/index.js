@@ -54,7 +54,7 @@ export async function start(env = process.env, hooks = {}) {
       resolve();
     });
   });
-  log(`RGB Commander Studio ${config.version} on http://${config.host}:${server.address().port}`);
+  log(`RGBcommander Studio ${config.version} on http://${config.host}:${server.address().port}`);
   log(`Schemes in ${config.dataDir}, .rgba files published to ${config.outputDir}`);
   for (const dir of [config.dataDir, config.outputDir]) {
     if (await canWrite(dir)) continue;

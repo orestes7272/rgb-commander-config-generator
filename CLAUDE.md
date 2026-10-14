@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-RGB Commander Studio: a browser app for designing RGBcommander `.rgba` lighting files for Ultimarc LED boards (mainly the I-PAC Ultimate I/O), published to a folder that Syncthing carries to an arcade cabinet. It ships as a Docker image (Unraid), and as a Linux AppImage. The README covers deployment and the RGBcommander format facts in detail.
+RGBcommander Studio: a browser app for designing RGBcommander `.rgba` lighting files for Ultimarc LED boards (mainly the I-PAC Ultimate I/O), published to a folder that Syncthing carries to an arcade cabinet. It ships as a Docker image (Unraid), and as a Linux AppImage. The README covers deployment and the RGBcommander format facts in detail.
 
 ## Git workflow
 
@@ -18,7 +18,7 @@ node --test test/api.test.js               # one suite
 node --test --test-name-pattern="publish" test/api.test.js   # tests matching a name
 npm run dev                                # http://localhost:8080, data in .dev/config, output in .dev/output
 npm run desktop                            # desktop launcher (own window, quits when it closes)
-npm run appimage                           # dist/RGB_Commander_Studio-<version>-<arch>.AppImage (ARCH=aarch64 for ARM)
+npm run appimage                           # dist/RGBcommander_Studio-<version>-<arch>.AppImage (ARCH=aarch64 for ARM)
 npm run icon                               # regenerate public/icon-256.png
 docker build -t rgb-commander-studio .
 ```

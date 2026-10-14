@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=RGB Commander Studio
+Name=RGBcommander Studio
 Comment=Design RGBcommander button lighting for Ultimarc LED boards
 Exec=rgb-commander-studio
 Icon=rgb-commander-studio

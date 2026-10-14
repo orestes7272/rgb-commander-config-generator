@@ -27,7 +27,7 @@ const home = os.homedir();
 const xdgData = process.env.XDG_DATA_HOME || path.join(home, '.local/share');
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public');
 
-const HELP = `RGB Commander Studio: design RGBcommander lighting files.
+const HELP = `RGBcommander Studio: design RGBcommander lighting files.
 
 Usage: rgb-commander-studio [options]
 
@@ -37,7 +37,7 @@ Usage: rgb-commander-studio [options]
   --output DIR   Publish .rgba files to DIR instead of the folder chosen in Settings
   --data DIR     Keep schemes and settings in DIR (default ${path.join(xdgData, APP_ID)})
   --no-open      Don't open a window; keep running until stopped with Ctrl+C
-  --install      Add RGB Commander Studio to your applications menu
+  --install      Add RGBcommander Studio to your applications menu
   --uninstall    Remove it from the menu again
   --help         Show this help
 `;
@@ -122,7 +122,7 @@ async function install() {
   const entry = [
     '[Desktop Entry]',
     'Type=Application',
-    'Name=RGB Commander Studio',
+    'Name=RGBcommander Studio',
     'Comment=Design RGBcommander button lighting for Ultimarc LED boards',
     `Exec=${execQuote(appimage)}`,
     `TryExec=${appimage}`,
@@ -135,14 +135,14 @@ async function install() {
   ].join('\n');
   const file = path.join(appsDir, `${APP_ID}.desktop`);
   await fs.writeFile(file, entry);
-  console.log(`Added RGB Commander Studio to your applications menu (${file}).`);
+  console.log(`Added RGBcommander Studio to your applications menu (${file}).`);
   console.log('If you move the AppImage, run it with --install again.');
 }
 
 async function uninstall() {
   await fs.rm(path.join(xdgData, 'applications', `${APP_ID}.desktop`), { force: true });
   await fs.rm(path.join(xdgData, 'icons/hicolor/256x256/apps', `${APP_ID}.png`), { force: true });
-  console.log('Removed RGB Commander Studio from your applications menu. Your schemes are untouched.');
+  console.log('Removed RGBcommander Studio from your applications menu. Your schemes are untouched.');
 }
 
 async function main() {
@@ -159,7 +159,7 @@ async function main() {
   // Launched again while running: just bring up another window.
   if (await runningHere(port)) {
     const url = `http://127.0.0.1:${port}/`;
-    console.log(`RGB Commander Studio is already running at ${url}`);
+    console.log(`RGBcommander Studio is already running at ${url}`);
     if (opts.open) openWindow(url, dataDir);
     return;
   }
@@ -187,7 +187,7 @@ async function main() {
 
   const shown = host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host.includes(':') ? `[${host}]` : host;
   const url = `http://${shown}:${server.address().port}/`;
-  console.log(`\nRGB Commander Studio is running at ${url}`);
+  console.log(`\nRGBcommander Studio is running at ${url}`);
 
   const stop = () => {
     server.close();

@@ -13,7 +13,7 @@ export class FilesView {
 
   async mount(container) {
     container.replaceChildren(this.el);
-    document.title = 'Files · RGB Commander Studio';
+    document.title = 'Files · RGBcommander Studio';
     this.search = h('input.search', { type: 'search', placeholder: 'Filter files…', 'aria-label': 'Filter files', oninput: () => this.renderGrid() });
     this.grid = h('div.file-grid');
     this.notice = h('div');

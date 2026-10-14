@@ -4,7 +4,7 @@
 #   scripts/build-appimage.sh                  # for this machine (x86_64 or aarch64)
 #   ARCH=aarch64 scripts/build-appimage.sh     # 64-bit ARM, e.g. Raspberry Pi OS 64-bit
 #
-# Writes dist/RGB_Commander_Studio-<version>-<arch>.AppImage. Downloads are
+# Writes dist/RGBcommander_Studio-<version>-<arch>.AppImage. Downloads are
 # pinned, checked against their published SHA-256 sums and cached between runs.
 set -euo pipefail
 
@@ -32,7 +32,7 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/rgb-commander-studio-build"
 WORK="$ROOT/build/appimage-$ARCH"
 APPDIR="$WORK/AppDir"
 LIB="$APPDIR/usr/lib/rgb-commander-studio"
-TARGET="$ROOT/dist/RGB_Commander_Studio-$VERSION-$ARCH.AppImage"
+TARGET="$ROOT/dist/RGBcommander_Studio-$VERSION-$ARCH.AppImage"
 mkdir -p "$CACHE" "$ROOT/dist"
 
 # fetch URL FILE SHA256: download unless cached, then verify.
