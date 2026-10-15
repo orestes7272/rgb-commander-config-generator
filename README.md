@@ -89,6 +89,16 @@ The container starts as root only long enough to take ownership of folders Docke
 
 Prefer Unraid's classic **Add Container** form? [`unraid/rgb-commander-studio.xml`](unraid/rgb-commander-studio.xml) is a ready-made template with the same settings.
 
+### Install it as an app
+
+Opened over HTTPS (for example through a reverse proxy such as Nginx Proxy Manager, SWAG or Caddy, or Tailscale with HTTPS turned on), the app can be installed from the browser and then opens in its own window with its own icon. Browsers only offer this over HTTPS or on `localhost`, not at a plain `http://tower:8080` address.
+
+- **Chrome or Edge:** click the install icon at the right end of the address bar, or choose **Install RGBcommander Studio** from the browser menu (in Chrome it's under **Cast, save and share**).
+- **Android:** browser menu → **Add to Home screen** or **Install app**.
+- **iPhone or iPad:** Share → **Add to Home Screen**.
+
+Firefox on the desktop can't install web apps. The app still needs the server, so it won't work offline.
+
 ### Or run it on a Linux desktop (AppImage)
 
 Rather design lighting on your PC? The AppImage is the same app as a single file with Node.js built in. It runs on any recent 64-bit Linux desktop with nothing to install: x86_64, or aarch64 such as Raspberry Pi OS 64-bit.
@@ -190,7 +200,7 @@ npm test          # node:test suites for the file format, wiring, effects, API a
 npm run dev       # http://localhost:8080, data in .dev/
 npm run desktop   # the desktop launcher: opens the app in its own window
 npm run appimage  # build dist/RGBcommander_Studio-<version>-<arch>.AppImage (ARCH=aarch64 for ARM)
-npm run icon      # regenerate public/icon-256.png
+npm run icon      # regenerate the app icons (public/icon-*.png)
 ```
 
 ```

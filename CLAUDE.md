@@ -19,7 +19,7 @@ node --test --test-name-pattern="publish" test/api.test.js   # tests matching a 
 npm run dev                                # http://localhost:8080, data in .dev/config, output in .dev/output
 npm run desktop                            # desktop launcher (own window, quits when it closes)
 npm run appimage                           # dist/RGBcommander_Studio-<version>-<arch>.AppImage (ARCH=aarch64 for ARM)
-npm run icon                               # regenerate public/icon-256.png
+npm run icon                               # regenerate the app icons (public/icon-*.png)
 docker build -t rgb-commander-studio .
 ```
 
@@ -45,6 +45,7 @@ The API tests start a real server with `start({ PORT: '0', DATA_DIR, OUTPUT_DIR 
   - Optional basic auth; `/api/health` is always open.
   - Same-origin check on `/api/*`.
   - Static files are served with a strict CSP (`script-src 'self'`): no inline scripts and no CDN assets.
+  - `public/manifest.webmanifest` makes the app installable over HTTPS. There is deliberately no service worker: the app needs the server anyway, and one could serve stale files after an update.
 - `http.js`: a tiny `Router` (`router.add(method, '/api/x/:id', handler)`). Handlers return JSON. `throw new HttpError(status, message, extra)` merges `extra` (e.g. `{ code: 'conflict' }`) into the error body, and the client branches on `code`.
 - `api.js`: every route. Data in `DATA_DIR` is `projects/<id>.json`, `layout.json`, `settings.json` and `backups/`.
   - **Publish status** comes from formatting-independent content hashes. `projectHash` vs `fileHash` vs the stored `publishedHash` gives `unpublished` / `published` / `changed` / `foreign`.

@@ -69,6 +69,20 @@ test('serves the app shell but not files outside public/', async () => {
   assert.equal((await fetch(base + '/js/../../server/index.js')).status, 404);
 });
 
+test('serves an installable web app manifest with its icons', async () => {
+  const res = await fetch(base + '/manifest.webmanifest');
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'application/manifest+json');
+  const manifest = await res.json();
+  assert.equal(manifest.display, 'standalone');
+  assert.ok(manifest.icons.some((i) => i.sizes === '512x512' && !i.purpose));
+  for (const icon of manifest.icons) {
+    const img = await fetch(new URL(icon.src, res.url));
+    assert.equal(img.status, 200, icon.src);
+    assert.equal(img.headers.get('content-type'), icon.type);
+  }
+});
+
 test('create, save, publish and re-import a scheme', async () => {
   const created = await api('POST', '/api/projects', {
     name: 'Test blue',
