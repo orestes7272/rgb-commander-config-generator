@@ -1,23 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- logo.svg's Neon Ring mark on the app tile. scripts/make-icon.mjs renders the same art as PNGs. -->
   <defs>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2"/>
-    </filter>
-    <clipPath id="disc"><circle cx="32" cy="32" r="24"/></clipPath>
-    <path id="wave" d="M-40 32q10 -20 20 0t20 0t20 0t20 0t20 0t20 0t20 0" fill="none" stroke-linecap="round"/>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
   </defs>
-  <rect width="64" height="64" rx="14" fill="#101116"/>
-  <circle cx="32" cy="32" r="26.5" fill="#12141a" stroke="#2a2e39" stroke-width="2.5"/>
-  <g clip-path="url(#disc)">
-    <g filter="url(#glow)" opacity=".7" stroke-width="6">
-      <use href="#wave" stroke="#ff2a3d"/>
-      <use href="#wave" stroke="#22ff66" x="13.3"/>
-      <use href="#wave" stroke="#2a5cff" x="26.7"/>
+  <rect x=".5" y=".5" width="63" height="63" rx="15.5" fill="#14161c" stroke="#252933"/>
+  <g transform="translate(4 4) scale(.28)">
+    <g filter="url(#glow)" fill="none" stroke-linecap="round" stroke-width="16">
+      <circle cx="100" cy="100" r="70" stroke="#ff2d4a" stroke-dasharray="122.2 317.6" transform="rotate(-140 100 100)"/>
+      <circle cx="100" cy="100" r="70" stroke="#22d46e" stroke-dasharray="122.2 317.6" transform="rotate(-20 100 100)"/>
+      <circle cx="100" cy="100" r="70" stroke="#2f7bff" stroke-dasharray="122.2 317.6" transform="rotate(100 100 100)"/>
+      <circle cx="100" cy="100" r="30" stroke="#ffffff" stroke-width="10" opacity=".6"/>
     </g>
-    <g style="isolation: isolate" stroke-width="3.5">
-      <use href="#wave" stroke="#ff2a3d" style="mix-blend-mode: screen"/>
-      <use href="#wave" stroke="#22ff66" x="13.3" style="mix-blend-mode: screen"/>
-      <use href="#wave" stroke="#2a5cff" x="26.7" style="mix-blend-mode: screen"/>
+    <g fill="none" stroke-linecap="round" stroke-width="9">
+      <circle cx="100" cy="100" r="70" stroke="#ff6b7f" stroke-dasharray="122.2 317.6" transform="rotate(-140 100 100)"/>
+      <circle cx="100" cy="100" r="70" stroke="#6cf0a4" stroke-dasharray="122.2 317.6" transform="rotate(-20 100 100)"/>
+      <circle cx="100" cy="100" r="70" stroke="#6ea3ff" stroke-dasharray="122.2 317.6" transform="rotate(100 100 100)"/>
+      <circle cx="100" cy="100" r="30" stroke="#f4f5f8" stroke-width="6"/>
     </g>
   </g>
 </svg>

@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" alt="RGBcommander Studio" width="560"></p>
+
 # RGBcommander Studio
 
 Design button lighting for your arcade cabinet in a browser, see it glow the way the LEDs will, and publish [RGBcommander](https://web.archive.org/web/2022/http://users.telenet.be/rgbcommander/) `.rgba` files to a share that Syncthing carries to the cabinet.
@@ -200,8 +202,10 @@ npm test          # node:test suites for the file format, wiring, effects, API a
 npm run dev       # http://localhost:8080, data in .dev/
 npm run desktop   # the desktop launcher: opens the app in its own window
 npm run appimage  # build dist/RGBcommander_Studio-<version>-<arch>.AppImage (ARCH=aarch64 for ARM)
-npm run icon      # regenerate the app icons (public/icon-*.png)
+npm run icon      # regenerate the app icons (public/icon-*.png) from the Neon Ring mark
 ```
+
+The logo is `public/logo.svg` (the bare mark) and `public/favicon.svg` (the mark on the app tile). The wordmark uses the Audiowide and Monoton fonts, bundled in `public/fonts/` under the SIL Open Font License.
 
 ```
 server/          HTTP server and JSON API (desktop.js is the desktop launcher)

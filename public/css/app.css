@@ -1,5 +1,16 @@
 /* RGBcommander Studio — dark by design: the LED colours should be the brightest thing on screen. */
 
+@font-face {
+  font-family: 'Audiowide';
+  src: url('../fonts/audiowide-latin.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Monoton';
+  src: url('../fonts/monoton-latin.woff2') format('woff2');
+  font-display: swap;
+}
+
 :root {
   --bg: #0b0c10;
   --bg-2: #0f1015;
@@ -131,21 +142,58 @@ kbd {
   align-items: center;
   gap: 10px;
   color: var(--text);
-  font-size: 15px;
   white-space: nowrap;
 }
 .brand:hover {
   text-decoration: none;
 }
-.brand b {
-  color: var(--accent);
-  font-weight: 700;
-}
 
 .brand-mark {
   display: block;
-  width: 28px;
-  height: 28px;
+  width: 42px;
+  height: 42px;
+}
+
+/* The Neon Ring wordmark: "RGB" in neon tubes, "COMMANDER" and a spaced-out "STUDIO" stacked beside it. */
+.brand-name {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.brand-rgb {
+  font-family: 'Monoton', var(--font);
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.brand-rgb .r {
+  color: #ff8f9e;
+  text-shadow: 0 0 6px #9f0016, 0 0 14px #9f0016;
+}
+.brand-rgb .g {
+  color: #effdf5;
+  text-shadow: 0 0 6px #1a8548, 0 0 14px #1a8548;
+}
+.brand-rgb .b {
+  color: #9fc2ff;
+  text-shadow: 0 0 6px #00338c, 0 0 14px #00338c;
+}
+.brand-words {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: 'Audiowide', var(--font);
+  line-height: 1;
+  text-transform: uppercase;
+}
+.brand-commander {
+  font-size: 16px;
+  color: #fafafc;
+}
+.brand-studio {
+  font-size: 8px;
+  letter-spacing: 0.7em;
+  color: #d7dbe1;
 }
 
 .nav {
