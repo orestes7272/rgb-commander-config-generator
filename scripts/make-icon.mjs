@@ -1,48 +1,57 @@
-// Renders the app icons without any image libraries: four glowing arcade
-// buttons, supersampled, written as PNGs. icon-256.png is used by the Unraid
-// template and the desktop app; the 512 px ones by the web app manifest.
-// "Maskable" icons fill the whole square and keep the art inside the middle
-// 80%, so Android can crop them to its own shape.
+// Renders the app icons without any image libraries: three red, green and
+// blue light waves, a third of a wavelength apart, blended like light inside a
+// ring, supersampled, written as PNGs. It matches public/favicon.svg.
+// icon-256.png is used by the Unraid template and the desktop app; the 512 px
+// ones by the web app manifest. "Maskable" icons fill the whole square and
+// keep the art inside the middle 80%, so Android can crop them to its own shape.
 import { writeFileSync } from 'node:fs';
 import { deflateSync, crc32 } from 'node:zlib';
 
 // The art is drawn on a 256-unit square.
 const SS = 4;
-const buttons = [
-  { x: 72, y: 96, c: [255, 45, 85] },
-  { x: 160, y: 80, c: [47, 123, 255] },
-  { x: 96, y: 180, c: [255, 196, 0] },
-  { x: 184, y: 168, c: [46, 224, 122] },
+const C = 128;
+const DISC = 96; // the waves are clipped to this circle
+const RING = 106; // the outline ring around it
+const AMP = 40;
+const LEN = 160; // wavelength
+const HALF = 7; // half the wave's stroke width
+const waves = [
+  { shift: 0, c: [255, 42, 61] },
+  { shift: LEN / 3, c: [34, 255, 102] },
+  { shift: (2 * LEN) / 3, c: [42, 92, 255] },
 ];
-const R = 34;
+
+// Approximate distance from a point to y = C - AMP * sin(...).
+function waveDistance(px, py, w) {
+  const k = (2 * Math.PI) / LEN;
+  const t = k * (px - w.shift);
+  const slope = AMP * k * Math.cos(t);
+  return Math.abs(py - (C - AMP * Math.sin(t))) / Math.sqrt(1 + slope * slope);
+}
 
 function sample(px, py, maskable) {
   if (maskable) {
-    px = 128 + (px - 128) / 0.8;
-    py = 128 + (py - 128) / 0.8;
+    px = C + (px - C) / 0.8;
+    py = C + (py - C) / 0.8;
   } else {
     // rounded-square background
     const r = 56;
-    const qx = Math.max(Math.abs(px - 128) - (128 - r), 0);
-    const qy = Math.max(Math.abs(py - 128) - (128 - r), 0);
+    const qx = Math.max(Math.abs(px - C) - (C - r), 0);
+    const qy = Math.max(Math.abs(py - C) - (C - r), 0);
     if (Math.hypot(qx, qy) > r) return [0, 0, 0, 0];
   }
-  let col = [16, 17, 22];
-  for (const b of buttons) {
-    const d = Math.hypot(px - b.x, py - b.y);
-    if (d > R) {
-      const glow = Math.exp(-((d - R) ** 2) / (2 * 14 ** 2)) * 0.55;
-      col = col.map((v, i) => v + b.c[i] * glow);
-    }
+  const d = Math.hypot(px - C, py - C);
+  if (Math.abs(d - RING) <= 5) return [42, 46, 57, 255];
+  if (d > RING) return [16, 17, 22, 255];
+  let col = [18, 20, 26];
+  if (d > DISC) return [...col, 255];
+  for (const w of waves) {
+    const g = Math.exp(-(Math.max(0, waveDistance(px, py, w) - HALF) ** 2) / (2 * 8 ** 2)) * 0.45;
+    col = col.map((v, i) => v + w.c[i] * g);
   }
-  for (const b of buttons) {
-    const d = Math.hypot(px - b.x, py - b.y);
-    if (d <= R + 5 && d > R) col = [10, 11, 14];
-    if (d <= R) {
-      const hl = Math.max(0, 1 - Math.hypot(px - (b.x - R * 0.3), py - (b.y - R * 0.35)) / (R * 0.75));
-      const edge = Math.max(0, (d / R - 0.6) / 0.4) * 0.35;
-      col = b.c.map((v) => v * (1 - edge) + 255 * hl * 0.55);
-    }
+  // Lit strokes combine like light (screen blend), so crossings go white.
+  for (const w of waves) {
+    if (waveDistance(px, py, w) <= HALF) col = col.map((v, i) => 255 - ((255 - Math.min(255, v)) * (255 - w.c[i])) / 255);
   }
   return [...col.map((v) => Math.min(255, v)), 255];
 }

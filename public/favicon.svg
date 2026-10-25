@@ -1,14 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <radialGradient id="s" cx=".35" cy=".3" r=".8">
-      <stop offset="0" stop-color="#fff" stop-opacity=".7"/>
-      <stop offset=".35" stop-color="#fff" stop-opacity=".1"/>
-      <stop offset="1" stop-color="#000" stop-opacity=".35"/>
-    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+    <clipPath id="disc"><circle cx="32" cy="32" r="24"/></clipPath>
+    <path id="wave" d="M-40 32q10 -20 20 0t20 0t20 0t20 0t20 0t20 0t20 0" fill="none" stroke-linecap="round"/>
   </defs>
   <rect width="64" height="64" rx="14" fill="#101116"/>
-  <circle cx="18" cy="24" r="9" fill="#ff2d55"/><circle cx="18" cy="24" r="9" fill="url(#s)"/>
-  <circle cx="40" cy="20" r="9" fill="#2f7bff"/><circle cx="40" cy="20" r="9" fill="url(#s)"/>
-  <circle cx="24" cy="45" r="9" fill="#ffc400"/><circle cx="24" cy="45" r="9" fill="url(#s)"/>
-  <circle cx="46" cy="42" r="9" fill="#2ee07a"/><circle cx="46" cy="42" r="9" fill="url(#s)"/>
+  <circle cx="32" cy="32" r="26.5" fill="#12141a" stroke="#2a2e39" stroke-width="2.5"/>
+  <g clip-path="url(#disc)">
+    <g filter="url(#glow)" opacity=".7" stroke-width="6">
+      <use href="#wave" stroke="#ff2a3d"/>
+      <use href="#wave" stroke="#22ff66" x="13.3"/>
+      <use href="#wave" stroke="#2a5cff" x="26.7"/>
+    </g>
+    <g style="isolation: isolate" stroke-width="3.5">
+      <use href="#wave" stroke="#ff2a3d" style="mix-blend-mode: screen"/>
+      <use href="#wave" stroke="#22ff66" x="13.3" style="mix-blend-mode: screen"/>
+      <use href="#wave" stroke="#2a5cff" x="26.7" style="mix-blend-mode: screen"/>
+    </g>
+  </g>
 </svg>
