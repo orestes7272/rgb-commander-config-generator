@@ -1,31 +1,32 @@
-// Renders the app icons without any image libraries: a neon ring split into
-// red, green and blue arcs around a white "button" ring, supersampled, written
-// as PNGs. It matches public/favicon.svg. icon-256.png is used by the Unraid
-// template and the desktop app; the 512 px ones by the web app manifest.
-// "Maskable" icons fill the whole square and keep the art inside the middle
-// 80%, so Android can crop them to its own shape.
+// Renders the app icons without any image libraries: three red, green and
+// blue light waves, a third of a wavelength apart, blended like light inside a
+// ring, supersampled, written as PNGs. It matches public/favicon.svg.
+// icon-256.png is used by the Unraid template and the desktop app; the 512 px
+// ones by the web app manifest. "Maskable" icons fill the whole square and
+// keep the art inside the middle 80%, so Android can crop them to its own shape.
 import { writeFileSync } from 'node:fs';
 import { deflateSync, crc32 } from 'node:zlib';
 
 // The art is drawn on a 256-unit square.
 const SS = 4;
 const C = 128;
-const RING = 80;
-const HALF_ARC = 46; // degrees either side of each arc's centre
-const arcs = [
-  { at: -90, core: [255, 107, 127], glow: [255, 45, 74] },
-  { at: 30, core: [108, 240, 164], glow: [34, 212, 110] },
-  { at: 150, core: [110, 163, 255], glow: [47, 123, 255] },
+const DISC = 96; // the waves are clipped to this circle
+const RING = 106; // the outline ring around it
+const AMP = 40;
+const LEN = 160; // wavelength
+const HALF = 7; // half the wave's stroke width
+const waves = [
+  { shift: 0, c: [255, 42, 61] },
+  { shift: LEN / 3, c: [34, 255, 102] },
+  { shift: (2 * LEN) / 3, c: [42, 92, 255] },
 ];
-const inner = { r: 34, core: [244, 245, 248], glow: [255, 255, 255] };
 
-// Distance from a point to an arc with round ends.
-function arcDistance(px, py, arc) {
-  const ang = (Math.atan2(py - C, px - C) * 180) / Math.PI;
-  const off = ((ang - arc.at + 540) % 360) - 180;
-  if (Math.abs(off) <= HALF_ARC) return Math.abs(Math.hypot(px - C, py - C) - RING);
-  const end = ((arc.at + Math.sign(off) * HALF_ARC) * Math.PI) / 180;
-  return Math.hypot(px - (C + RING * Math.cos(end)), py - (C + RING * Math.sin(end)));
+// Approximate distance from a point to y = C - AMP * sin(...).
+function waveDistance(px, py, w) {
+  const k = (2 * Math.PI) / LEN;
+  const t = k * (px - w.shift);
+  const slope = AMP * k * Math.cos(t);
+  return Math.abs(py - (C - AMP * Math.sin(t))) / Math.sqrt(1 + slope * slope);
 }
 
 function sample(px, py, maskable) {
@@ -39,16 +40,19 @@ function sample(px, py, maskable) {
     const qy = Math.max(Math.abs(py - C) - (C - r), 0);
     if (Math.hypot(qx, qy) > r) return [0, 0, 0, 0];
   }
-  const strokes = [
-    ...arcs.map((a) => ({ d: arcDistance(px, py, a), w: 7, ...a })),
-    { d: Math.abs(Math.hypot(px - C, py - C) - inner.r), w: 5.5, ...inner },
-  ];
-  let col = [16, 17, 22];
-  for (const s of strokes) {
-    const glow = Math.exp(-(Math.max(0, s.d - s.w) ** 2) / (2 * 9 ** 2)) * 0.6;
-    col = col.map((v, i) => v + s.glow[i] * glow);
+  const d = Math.hypot(px - C, py - C);
+  if (Math.abs(d - RING) <= 5) return [42, 46, 57, 255];
+  if (d > RING) return [16, 17, 22, 255];
+  let col = [18, 20, 26];
+  if (d > DISC) return [...col, 255];
+  for (const w of waves) {
+    const g = Math.exp(-(Math.max(0, waveDistance(px, py, w) - HALF) ** 2) / (2 * 8 ** 2)) * 0.45;
+    col = col.map((v, i) => v + w.c[i] * g);
   }
-  for (const s of strokes) if (s.d <= s.w) col = s.core;
+  // Lit strokes combine like light (screen blend), so crossings go white.
+  for (const w of waves) {
+    if (waveDistance(px, py, w) <= HALF) col = col.map((v, i) => 255 - ((255 - Math.min(255, v)) * (255 - w.c[i])) / 255);
+  }
   return [...col.map((v) => Math.min(255, v)), 255];
 }
 
