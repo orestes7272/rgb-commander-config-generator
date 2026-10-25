@@ -142,24 +142,10 @@ kbd {
   font-weight: 700;
 }
 
-.brand-leds {
-  display: flex;
-  gap: 4px;
-}
-.brand-leds i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #ff2d55;
-  box-shadow: 0 0 10px #ff2d55;
-}
-.brand-leds i:nth-child(2) {
-  background: #2f7bff;
-  box-shadow: 0 0 10px #2f7bff;
-}
-.brand-leds i:nth-child(3) {
-  background: #2ee07a;
-  box-shadow: 0 0 10px #2ee07a;
+.brand-mark {
+  display: block;
+  width: 28px;
+  height: 28px;
 }
 
 .nav {

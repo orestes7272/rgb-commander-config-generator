@@ -1,14 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <radialGradient id="s" cx=".35" cy=".3" r=".8">
-      <stop offset="0" stop-color="#fff" stop-opacity=".7"/>
-      <stop offset=".35" stop-color="#fff" stop-opacity=".1"/>
-      <stop offset="1" stop-color="#000" stop-opacity=".35"/>
-    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+    <g id="ring" fill="none" stroke-linecap="round">
+      <circle cx="32" cy="32" r="20" stroke="#ff2d4a" stroke-dasharray="32.1 93.6" transform="rotate(-136 32 32)"/>
+      <circle cx="32" cy="32" r="20" stroke="#22d46e" stroke-dasharray="32.1 93.6" transform="rotate(-16 32 32)"/>
+      <circle cx="32" cy="32" r="20" stroke="#2f7bff" stroke-dasharray="32.1 93.6" transform="rotate(104 32 32)"/>
+      <circle cx="32" cy="32" r="8.5" stroke="#fff"/>
+    </g>
   </defs>
   <rect width="64" height="64" rx="14" fill="#101116"/>
-  <circle cx="18" cy="24" r="9" fill="#ff2d55"/><circle cx="18" cy="24" r="9" fill="url(#s)"/>
-  <circle cx="40" cy="20" r="9" fill="#2f7bff"/><circle cx="40" cy="20" r="9" fill="url(#s)"/>
-  <circle cx="24" cy="45" r="9" fill="#ffc400"/><circle cx="24" cy="45" r="9" fill="url(#s)"/>
-  <circle cx="46" cy="42" r="9" fill="#2ee07a"/><circle cx="46" cy="42" r="9" fill="url(#s)"/>
+  <use href="#ring" stroke-width="7" filter="url(#glow)" opacity=".8"/>
+  <g fill="none" stroke-linecap="round" stroke-width="4.5">
+    <circle cx="32" cy="32" r="20" stroke="#ff6b7f" stroke-dasharray="32.1 93.6" transform="rotate(-136 32 32)"/>
+    <circle cx="32" cy="32" r="20" stroke="#6cf0a4" stroke-dasharray="32.1 93.6" transform="rotate(-16 32 32)"/>
+    <circle cx="32" cy="32" r="20" stroke="#6ea3ff" stroke-dasharray="32.1 93.6" transform="rotate(104 32 32)"/>
+    <circle cx="32" cy="32" r="8.5" stroke="#f4f5f8" stroke-width="3.5"/>
+  </g>
 </svg>
