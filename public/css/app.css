@@ -238,42 +238,66 @@ kbd {
 
 /* ---------------------------------------------------------------- buttons */
 
+/* Chamfered "service menu" buttons. The button's own background is the 1px edge and
+   ::before is the fill, both cut by the same clip-path, so colour them with --edge / --fill. */
 .btn {
+  --edge: #313646;
+  --fill: #12141a;
+  --cut: 8px;
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
   height: 34px;
   padding: 0 13px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  border: 0;
+  border-radius: 0;
+  background: var(--edge);
   color: var(--text);
-  font: 500 13.5px var(--font);
+  font: 600 11.5px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
   cursor: pointer;
   white-space: nowrap;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
   transition:
-    background 0.12s,
-    border-color 0.12s,
-    color 0.12s,
-    box-shadow 0.12s;
+    background 0.14s,
+    color 0.14s;
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: var(--fill);
+  clip-path: inherit;
+  transition: background 0.14s;
 }
 .btn:hover:not(:disabled) {
-  background: var(--surface-3);
-  border-color: #414757;
+  --edge: #4f566b;
+  --fill: #181b23;
   text-decoration: none;
 }
 .btn:active:not(:disabled) {
+  --fill: #0f1116;
   transform: translateY(1px);
 }
+/* The clip-path would cut off an outside outline, so draw it inside. */
+.btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -4px;
+}
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.42;
   cursor: default;
 }
 .btn.small {
+  --cut: 6px;
   height: 29px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: 10.5px;
   gap: 5px;
 }
 .btn.icon-only {
@@ -283,64 +307,71 @@ kbd {
 .btn.small.icon-only {
   width: 29px;
 }
+/* An RGB ring: the edge is a red, violet and cyan gradient, like a lit RGB LED. */
 .btn.primary {
-  background: linear-gradient(180deg, #9a89ff, var(--accent-2));
-  border-color: #8a78ff;
-  color: #fff;
-  box-shadow: 0 4px 18px rgba(116, 98, 245, 0.35);
+  --edge: linear-gradient(100deg, #ff5a6a, #8f7dff 50%, #36d9ff);
+  --fill: radial-gradient(120% 140% at 50% 0%, #2a2350, #17142a);
+  color: #f1eeff;
+  text-shadow: 0 0 10px rgba(143, 125, 255, 0.85);
 }
 .btn.primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #a898ff, #7f6dfb);
-  border-color: #a193ff;
+  --edge: linear-gradient(100deg, #ff7a87, #a596ff 50%, #6ce4ff);
+  --fill: radial-gradient(120% 140% at 50% 0%, #352c66, #1c1833);
+}
+.btn.primary:active:not(:disabled) {
+  --fill: #17142a;
 }
 .btn.ghost {
-  background: transparent;
-  border-color: transparent;
+  --edge: transparent;
+  --fill: transparent;
   color: var(--text-2);
 }
 .btn.ghost:hover:not(:disabled) {
-  background: var(--surface-2);
+  --edge: #2a2e3a;
+  --fill: #12141a;
   color: var(--text);
-  border-color: var(--line);
 }
 .btn.accent-ghost {
+  --edge: var(--accent-line);
+  --fill: #16142a;
   color: var(--accent);
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
 }
 .btn.danger {
-  background: rgba(255, 90, 106, 0.14);
-  border-color: rgba(255, 90, 106, 0.5);
+  --edge: #b8404d;
+  --fill: #1d1013;
   color: #ff8b97;
 }
 .btn.danger:hover:not(:disabled) {
-  background: rgba(255, 90, 106, 0.24);
+  --edge: #e05261;
+  --fill: #2a1418;
 }
 .btn.link {
   height: auto;
   padding: 0;
-  border: 0;
   background: none;
+  clip-path: none;
   color: var(--accent);
+  font: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.btn.link::before {
+  content: none;
 }
 .btn.link:hover {
   background: none;
   text-decoration: underline;
 }
 .btn[aria-pressed='true'] {
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-  color: var(--text);
+  --edge: #7a6be0;
+  --fill: #1a1730;
+  color: #fff;
 }
 .btn[aria-pressed='true'] .icon {
   color: var(--accent);
 }
 .btn.toggle[aria-pressed='false'] {
   color: var(--text-2);
-}
-
-.chip-btn {
-  border-radius: 999px;
 }
 
 .check {
@@ -898,8 +929,9 @@ select {
   min-width: 84px;
 }
 .play-btn.playing {
-  background: rgba(54, 217, 143, 0.14);
-  border-color: rgba(54, 217, 143, 0.5);
+  --edge: rgba(54, 217, 143, 0.6);
+  --fill: #0f1f19;
+  color: #8ff0c2;
 }
 
 .tl-counter {
