@@ -2,6 +2,7 @@ import { h, icon } from '../dom.js';
 import { store } from '../store.js';
 import { toast, errorToast } from '../ui/dialogs.js';
 import { BackupsCard } from '../ui/backups-card.js';
+import { BUTTON_STYLES } from '../ui/panel.js';
 
 export class SettingsView {
   constructor() {
@@ -141,6 +142,15 @@ export class SettingsView {
         ),
         number('defaultFrameMs', 'Default frame duration', 'Used for blank frames you add. RGBcommander allows 0–255 ms per frame; longer holds are split automatically.', 0, 255, 'ms'),
         toggle('showPorts', 'Show LED port numbers', 'Little badges on each button with the port it’s wired to.'),
+        h(
+          'label.setting',
+          h('div', h('strong', 'Button style'), h('p', 'How pushbuttons are drawn on the panel. Concave lights the whole cap; Halo ring keeps the cap dark and lights a ring around it.')),
+          h(
+            'select',
+            { onchange: (e) => this.save({ buttonStyle: e.target.value }) },
+            Object.entries(BUTTON_STYLES).map(([value, name]) => h('option', { value, selected: s.buttonStyle === value }, name)),
+          ),
+        ),
       ),
       this.backups.el,
       h(

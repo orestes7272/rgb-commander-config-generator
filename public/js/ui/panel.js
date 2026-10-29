@@ -6,6 +6,10 @@ import { ledToScreen, cssRgb, luminance, isOff } from '../core/color.js';
 let uidCounter = 0;
 
 const OFF_CAP = '#2a2d36';
+const HALO_OFF = '#30343f';
+
+/** Pushbutton looks, chosen in Settings. */
+export const BUTTON_STYLES = { concave: 'Concave', halo: 'Halo ring' };
 
 /**
  * SVG rendering of a control panel.
@@ -20,7 +24,7 @@ export class PanelView {
     this.getTool = getTool;
     this.cb = callbacks;
     this.uid = `pv${++uidCounter}`;
-    this.options = { previewMode: 'led', showPorts: false, grid: mode === 'layout' };
+    this.options = { previewMode: 'led', showPorts: false, grid: mode === 'layout', buttonStyle: 'concave' };
     this.selection = new Set();
     this.nodes = new Map();
     this.controls = [];
@@ -32,7 +36,7 @@ export class PanelView {
   }
 
   setOptions(options) {
-    const rebuild = options.grid !== undefined && options.grid !== this.options.grid;
+    const rebuild = ['grid', 'buttonStyle'].some((k) => options[k] !== undefined && options[k] !== this.options[k]);
     Object.assign(this.options, options);
     if (rebuild && this.layout) this.setLayout(this.layout, this.controls);
     else this.repaint();
@@ -50,6 +54,28 @@ export class PanelView {
       'defs',
       {},
       svgEl('filter', { id: `${u}-glow`, x: '-1', y: '-1', width: '3', height: '3', 'color-interpolation-filters': 'sRGB' }, svgEl('feGaussianBlur', { stdDeviation: 9 })),
+      svgEl('filter', { id: `${u}-soft`, x: '-1', y: '-1', width: '3', height: '3', 'color-interpolation-filters': 'sRGB' }, svgEl('feGaussianBlur', { stdDeviation: 2.2 })),
+      // Concave: the dish is dark under the top lip and catches light at the bottom.
+      svgEl(
+        'linearGradient',
+        { id: `${u}-dish`, x1: '0', y1: '0', x2: '0', y2: '1' },
+        svgEl('stop', { offset: '0', 'stop-color': '#000', 'stop-opacity': '0.45' }),
+        svgEl('stop', { offset: '0.45', 'stop-color': '#000', 'stop-opacity': '0.05' }),
+        svgEl('stop', { offset: '1', 'stop-color': '#fff', 'stop-opacity': '0.28' }),
+      ),
+      svgEl(
+        'linearGradient',
+        { id: `${u}-rim`, x1: '0', y1: '0', x2: '0', y2: '1' },
+        svgEl('stop', { offset: '0', 'stop-color': '#fff', 'stop-opacity': '0.35' }),
+        svgEl('stop', { offset: '1', 'stop-color': '#000', 'stop-opacity': '0.3' }),
+      ),
+      // Halo ring: the cap stays dark and the colour lives on the ring around it.
+      svgEl(
+        'radialGradient',
+        { id: `${u}-halo-cap`, cx: '0.45', cy: '0.35', r: '0.75' },
+        svgEl('stop', { offset: '0', 'stop-color': '#2a2d36' }),
+        svgEl('stop', { offset: '1', 'stop-color': '#121318' }),
+      ),
       svgEl(
         'radialGradient',
         { id: `${u}-shine`, cx: '0.36', cy: '0.3', r: '0.8' },
@@ -95,11 +121,15 @@ export class PanelView {
   buildControl(c) {
     const u = this.uid;
     const r = radiusOf(c);
-    const glow = svgEl('circle', { class: 'glow', cx: c.x, cy: c.y, r: r * 2, filter: `url(#${u}-glow)` });
+    // LED indicators and the round controls keep their own look; only pushbuttons are styled.
+    const style = ['stick', 'trackball', 'spinner', 'led'].includes(c.kind) ? null : this.options.buttonStyle;
+    const glow = svgEl('circle', { class: 'glow', cx: c.x, cy: c.y, r: r * (style === 'halo' ? 1.5 : style === 'concave' ? 1.9 : 2), filter: `url(#${u}-glow)` });
     this.glowLayer.append(glow);
-    const g = svgEl('g', { class: `ctl kind-${c.kind}${c.pins ? '' : ' unlit'}`, transform: `translate(${c.x} ${c.y})`, 'data-id': c.id });
+    const g = svgEl('g', { class: `ctl kind-${c.kind}${style ? ` style-${style}` : ''}${c.pins ? '' : ' unlit'}`, transform: `translate(${c.x} ${c.y})`, 'data-id': c.id });
     let cap;
     let face;
+    let halo = null;
+    let haloRing = null;
     if (c.kind === 'stick') {
       g.append(svgEl('circle', { class: 'washer', r: r * 1.75 }), svgEl('circle', { class: 'shaft', r: r * 0.42 }));
       cap = svgEl('circle', { class: 'cap', r });
@@ -120,6 +150,21 @@ export class PanelView {
       }
       face = svgEl('circle', { class: 'shine', r, fill: `url(#${u}-shine)` });
       g.append(face);
+    } else if (style === 'halo') {
+      g.append(svgEl('circle', { class: 'bezel', r: r * 1.3 }));
+      halo = svgEl('circle', { class: 'halo', r: r * 1.12, 'stroke-width': r * 0.34, filter: `url(#${u}-soft)` });
+      haloRing = svgEl('circle', { class: 'halo-ring', r: r * 1.12, 'stroke-width': r * 0.16 });
+      cap = svgEl('circle', { class: 'cap', r: r * 0.98, fill: `url(#${u}-halo-cap)` });
+      g.append(halo, haloRing, cap);
+    } else if (style === 'concave') {
+      g.append(svgEl('circle', { class: 'bezel', r: r * 1.2 }));
+      cap = svgEl('circle', { class: 'cap', r });
+      g.append(
+        cap,
+        svgEl('circle', { class: 'shine', r, fill: 'none', stroke: `url(#${u}-rim)`, 'stroke-width': 1.6 }),
+        svgEl('circle', { class: 'shine', r: r * 0.84, fill: `url(#${u}-dish)` }),
+        svgEl('circle', { class: 'shine dish-edge', r: r * 0.84 }),
+      );
     } else {
       g.append(svgEl('circle', { class: 'bezel', r: r * (c.kind === 'led' ? 1.35 : 1.2) }));
       cap = svgEl('circle', { class: 'cap', r });
@@ -129,7 +174,7 @@ export class PanelView {
     const labelSize = Math.max(5, Math.min(r * 0.62, 11));
     const label = c.label && c.kind !== 'led' ? svgEl('text', { class: 'label', 'font-size': labelSize, dy: labelSize * 0.35 }, c.label) : null;
     if (label) g.append(label);
-    const ring = svgEl('circle', { class: 'sel-ring', r: r * (c.kind === 'stick' ? 1.95 : 1.42) });
+    const ring = svgEl('circle', { class: 'sel-ring', r: r * (c.kind === 'stick' ? 1.95 : style === 'halo' ? 1.5 : 1.42) });
     g.append(ring);
     let badge = null;
     if (c.wiring?.mode === 'port') {
@@ -142,7 +187,7 @@ export class PanelView {
       g.append(badge);
     }
     this.controlLayer.append(g);
-    this.nodes.set(c.id, { g, glow, cap, label, badge, ring });
+    this.nodes.set(c.id, { g, glow, cap, label, badge, ring, halo, haloRing });
   }
 
   setPins(pins) {
@@ -164,19 +209,32 @@ export class PanelView {
       if (n.badge) n.badge.style.display = showPorts ? '' : 'none';
       const rgb = this.pins && c.pins ? getControlColor(this.pins, c.pins) : null;
       if (!rgb || isOff(rgb)) {
-        n.cap.setAttribute('fill', c.kind === 'stick' && !c.pins ? '#14151a' : OFF_CAP);
+        if (n.haloRing) {
+          n.haloRing.setAttribute('stroke', HALO_OFF);
+          n.halo.style.display = 'none';
+        } else n.cap.setAttribute('fill', c.kind === 'stick' && !c.pins ? '#14151a' : OFF_CAP);
         n.glow.style.opacity = '0';
         n.g.classList.add('off');
-        if (n.label) n.label.setAttribute('fill', '#8b91a0');
+        if (n.label) n.label.setAttribute('fill', n.haloRing ? '#7a8090' : '#8b91a0');
         continue;
       }
       n.g.classList.remove('off');
       const screen = ledToScreen(rgb, previewMode);
       const fill = cssRgb(screen);
-      n.cap.setAttribute('fill', fill);
       n.glow.setAttribute('fill', fill);
       const level = Math.max(rgb.r, rgb.g, rgb.b) / 255;
-      n.glow.style.opacity = String(0.18 + 0.6 * Math.sqrt(level));
+      const glowLevel = 0.18 + 0.6 * Math.sqrt(level);
+      if (n.haloRing) {
+        n.haloRing.setAttribute('stroke', fill);
+        n.halo.setAttribute('stroke', fill);
+        n.halo.style.display = '';
+        n.glow.style.opacity = String(glowLevel * 0.5);
+        // The label sits on the dark cap, so tint it with a lightened ring colour.
+        if (n.label) n.label.setAttribute('fill', cssRgb(Object.fromEntries(Object.entries(screen).map(([k, v]) => [k, Math.round(v + (255 - v) * 0.35)]))));
+        continue;
+      }
+      n.cap.setAttribute('fill', fill);
+      n.glow.style.opacity = String(glowLevel);
       if (n.label) n.label.setAttribute('fill', luminance(screen) > 0.38 ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.9)');
     }
   }

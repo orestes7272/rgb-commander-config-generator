@@ -411,7 +411,7 @@ export class EditorView {
 
   renderLayout() {
     this.panel.setLayout(store.layout, store.controls);
-    this.panel.setOptions({ previewMode: store.settings.previewMode, showPorts: store.settings.showPorts });
+    this.panel.setOptions({ previewMode: store.settings.previewMode, buttonStyle: store.settings.buttonStyle, showPorts: store.settings.showPorts });
     this.panel.setSelection(store.selection);
     this.portsBtn.setAttribute('aria-pressed', String(store.settings.showPorts));
     this.renderGroups();

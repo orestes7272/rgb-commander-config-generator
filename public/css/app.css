@@ -765,6 +765,26 @@ select {
 .shine {
   pointer-events: none;
 }
+.dish-edge {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.28);
+  stroke-width: 0.8;
+}
+.style-halo .bezel {
+  fill: #0a0b0e;
+  stroke: #262a33;
+}
+.style-halo .cap {
+  stroke: rgba(0, 0, 0, 0.6);
+}
+.halo,
+.halo-ring {
+  fill: none;
+  pointer-events: none;
+}
+.halo {
+  opacity: 0.9;
+}
 .washer {
   fill: #0e0f13;
   stroke: #2d313b;

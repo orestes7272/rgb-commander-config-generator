@@ -17,7 +17,7 @@ export function openPreviewDialog({ title, text, actions = [] }) {
   const schemeFrames = frames.map((fr) => ({ ms: fr.delay, pins: expandToPins(fr.values, pinCount) }));
   const view = new PanelView({ mode: 'static', className: 'file-preview' });
   view.setLayout(store.layout, store.controls);
-  view.setOptions({ previewMode: store.settings.previewMode, showPorts: store.settings.showPorts });
+  view.setOptions({ previewMode: store.settings.previewMode, buttonStyle: store.settings.buttonStyle, showPorts: store.settings.showPorts });
   const counter = h('span.muted');
   const player = new Player((i, pins) => {
     view.setPins(pins);

@@ -60,6 +60,13 @@ test('autosave can be turned off and back on', async () => {
   assert.equal((await api('PUT', '/api/settings', { autosave: true })).body.autosave, true);
 });
 
+test('button style defaults to concave and accepts only known styles', async () => {
+  assert.equal((await api('GET', '/api/settings')).body.buttonStyle, 'concave');
+  assert.equal((await api('PUT', '/api/settings', { buttonStyle: 'halo' })).body.buttonStyle, 'halo');
+  assert.equal((await api('PUT', '/api/settings', { buttonStyle: 'sparkly' })).body.buttonStyle, 'halo');
+  assert.equal((await api('PUT', '/api/settings', { buttonStyle: 'concave' })).body.buttonStyle, 'concave');
+});
+
 test('serves the app shell but not files outside public/', async () => {
   const res = await fetch(base + '/');
   assert.equal(res.status, 200);

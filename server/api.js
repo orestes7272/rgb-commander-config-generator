@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS = {
   simulateHardware: true,
   frameWriteMs: 185,
   showPorts: false,
+  buttonStyle: 'concave',
   outputDir: '',
   schemeOrder: [],
   autosave: true,
@@ -47,6 +48,7 @@ function sanitizeSettings(input, current) {
   intIn('defaultFrameMs', 0, 255);
   intIn('frameWriteMs', 0, 2000);
   if (input.previewMode === 'led' || input.previewMode === 'raw') s.previewMode = input.previewMode;
+  if (input.buttonStyle === 'concave' || input.buttonStyle === 'halo') s.buttonStyle = input.buttonStyle;
   for (const key of ['simulateHardware', 'showPorts', 'autosave']) if (typeof input[key] === 'boolean') s[key] = input[key];
   if (input.schemeOrder !== undefined) {
     const order = input.schemeOrder;

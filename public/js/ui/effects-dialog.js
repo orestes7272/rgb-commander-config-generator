@@ -26,7 +26,7 @@ export function openEffectsDialog() {
 
   const preview = new PanelView({ mode: 'static', className: 'effect-preview' });
   preview.setLayout(store.layout, store.controls);
-  preview.setOptions({ previewMode: store.settings.previewMode });
+  preview.setOptions({ previewMode: store.settings.previewMode, buttonStyle: store.settings.buttonStyle });
   const player = new Player((_, pins) => preview.setPins(pins));
   const info = h('p.effect-info');
   const list = h('div.effect-list', { role: 'radiogroup', 'aria-label': 'Effect' });

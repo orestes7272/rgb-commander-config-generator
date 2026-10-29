@@ -16,7 +16,7 @@ export function openGradientDialog() {
 
   const preview = new PanelView({ mode: 'static', className: 'effect-preview' });
   preview.setLayout(store.layout, store.controls);
-  preview.setOptions({ previewMode: store.settings.previewMode });
+  preview.setOptions({ previewMode: store.settings.previewMode, buttonStyle: store.settings.buttonStyle });
 
   const targets = () => (options.scope === 'selection' && selected.length ? selected : store.controls.filter((c) => c.pins));
   const update = () => {

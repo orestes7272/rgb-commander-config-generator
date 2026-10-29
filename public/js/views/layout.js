@@ -112,7 +112,7 @@ export class LayoutView {
 
   render() {
     this.panel.setLayout(this.layout, store.controls);
-    this.panel.setOptions({ previewMode: store.settings.previewMode, showPorts: store.settings.showPorts });
+    this.panel.setOptions({ previewMode: store.settings.previewMode, buttonStyle: store.settings.buttonStyle, showPorts: store.settings.showPorts });
     for (const id of [...this.selection]) if (!store.controlById.has(id)) this.selection.delete(id);
     this.panel.setSelection(this.selection);
     this.renderPreview();
